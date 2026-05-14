@@ -1,0 +1,38 @@
+[
+    {
+        "operation": "Duplicates (detect)",
+        "rows_affected": 0,
+        "timestamp": "2026-05-14 10:59:33",
+        "details": {}
+    },
+    {
+        "operation": "Duplicates (detect)",
+        "rows_affected": 0,
+        "timestamp": "2026-05-14 11:01:40",
+        "details": {}
+    },
+    {
+        "operation": "Duplicates (remove)",
+        "rows_affected": 0,
+        "timestamp": "2026-05-14 11:01:54",
+        "details": {}
+    },
+    {
+        "operation": "Duplicates (detect)",
+        "rows_affected": 0,
+        "timestamp": "2026-05-14 11:06:16",
+        "details": {}
+    },
+    {
+        "operation": "Duplicates (remove)",
+        "rows_affected": 0,
+        "timestamp": "2026-05-14 11:06:23",
+        "details": {}
+    },
+    {
+        "operation": "Duplicates (keep_latest)",
+        "rows_affected": 0,
+        "timestamp": "2026-05-14 11:06:27",
+        "details": {}
+    }
+]
