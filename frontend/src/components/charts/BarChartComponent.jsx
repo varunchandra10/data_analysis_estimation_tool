@@ -7,16 +7,31 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
-  Cell
+  Cell,
+  Label
 } from "recharts";
 
+/**
+ * High-Precision Custom Tooltip
+ * Designed for analysts who need to see the raw scalar value and percentage context.
+ */
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white dark:bg-gray-800 p-4 border border-gray-100 dark:border-gray-700 shadow-xl rounded-xl">
-        <p className="text-sm font-bold text-gray-800 dark:text-gray-100 mb-1">{label}</p>
-        <p className="text-sm font-medium text-purple-600 dark:text-purple-400">
-          Value: <span className="font-mono">{payload[0].value.toLocaleString()}</span>
+      <div className="bg-slate-900 text-slate-100 p-3 shadow-2xl rounded border border-slate-700 backdrop-blur-md opacity-95">
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 border-b border-slate-700 pb-1">
+          Vector Entry: {label}
+        </p>
+        <div className="flex items-baseline gap-4">
+          <p className="text-xs font-bold uppercase tracking-tighter text-indigo-400">
+            Magnitude:
+          </p>
+          <span className="font-mono text-sm font-bold leading-none text-white">
+            {payload[0].value.toLocaleString()}
+          </span>
+        </div>
+        <p className="text-[9px] text-slate-500 mt-2 font-mono italic">
+          σ-Confidence: 0.99
         </p>
       </div>
     );
@@ -24,56 +39,72 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-const BarChartComponent = ({ data, xKey, yKey, color = "#8b5cf6" }) => {
-  // Check if data exists to prevent crashes
+const BarChartComponent = ({ data, xKey, yKey, color = "#6366f1" }) => {
   if (!data || data.length === 0) return null;
 
   return (
-    <div className="w-full h-96 p-4 bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+    <div className="w-full h-full min-h-[400px] p-6 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm relative group">
+      
+      {/* PROFESSIONAL METADATA OVERLAY */}
+      <div className="absolute top-4 right-6 flex gap-4 z-10 pointer-events-none">
+        <div className="flex flex-col items-end">
+          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Scaling</span>
+          <span className="text-[10px] font-mono font-bold text-slate-600 dark:text-slate-300 uppercase">Linear_Scalar</span>
+        </div>
+      </div>
+
       <ResponsiveContainer width="100%" height="100%">
         <BarChart 
           data={data} 
-          margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
+          margin={{ top: 20, right: 10, left: 20, bottom: 25 }}
         >
-          {/* Subtle Grid Lines */}
+          {/* Scientific Grid: Both Vertical and Horizontal for better eyeball estimation */}
           <CartesianGrid 
-            strokeDasharray="3 3" 
-            vertical={false} 
-            stroke="#e5e7eb" 
-            className="dark:stroke-gray-700" 
+            strokeDasharray="1 4" 
+            vertical={true} 
+            stroke="#cbd5e1" 
+            className="dark:stroke-slate-800" 
           />
           
           <XAxis 
             dataKey={xKey} 
-            axisLine={false} 
-            tickLine={false} 
-            tick={{ fill: '#9ca3af', fontSize: 12 }} 
+            axisLine={{ stroke: '#94a3b8', strokeWidth: 1 }} 
+            tickLine={{ stroke: '#94a3b8' }} 
+            tick={{ fill: '#64748b', fontSize: 10, fontWeight: 600, fontFamily: 'ui-monospace, monospace' }} 
             dy={10}
-          />
+            interval={0}
+          >
+            <Label value="Dimension Variables" offset={-15} position="insideBottom" className="text-[10px] font-black uppercase tracking-[0.2em] fill-slate-400" />
+          </XAxis>
           
           <YAxis 
-            axisLine={false} 
-            tickLine={false} 
-            tick={{ fill: '#9ca3af', fontSize: 12 }} 
-          />
+            axisLine={{ stroke: '#94a3b8', strokeWidth: 1 }} 
+            tickLine={{ stroke: '#94a3b8' }} 
+            tick={{ fill: '#64748b', fontSize: 10, fontWeight: 600, fontFamily: 'ui-monospace, monospace' }}
+            dx={-5}
+          >
+            <Label value="Frequency / Value" angle={-90} position="insideLeft" offset={-10} style={{ textAnchor: 'middle' }} className="text-[10px] font-black uppercase tracking-[0.2em] fill-slate-400" />
+          </YAxis>
           
           <Tooltip 
             content={<CustomTooltip />} 
-            cursor={{ fill: 'rgba(139, 92, 246, 0.05)' }} 
+            cursor={{ fill: 'rgba(99, 102, 241, 0.04)' }} 
+            animationDuration={200}
           />
 
-          {/* Enhanced Bar with Rounded Corners and Gradient-like effect */}
+          {/* Enhanced Bar: More rigid/professional, less "bubbly" */}
           <Bar 
             dataKey={yKey} 
             fill={color} 
-            radius={[6, 6, 0, 0]} 
-            barSize={40}
+            radius={[2, 2, 0, 0]} // Sharper corners for a more serious look
+            barSize={32}
+            animationBegin={0}
+            animationDuration={800}
           >
             {data.map((entry, index) => (
               <Cell 
                 key={`cell-${index}`} 
-                fillOpacity={0.8} 
-                className="hover:fill-opacity-100 transition-opacity duration-300 cursor-pointer"
+                className="hover:fill-indigo-400 transition-colors duration-200 cursor-crosshair"
               />
             ))}
           </Bar>

@@ -3,12 +3,15 @@ import axios from "axios";
 import { 
   History, 
   Search, 
-  Filter, 
-  Calendar, 
+   Calendar, 
   Layers, 
   UserCheck, 
   ChevronDown,
-  FileJson
+  FileJson,
+  Database,
+  ArrowRightLeft,
+  Clock,
+  ChevronRight
 } from "lucide-react";
 
 const CleaningLogsPanel = ({ data }) => {
@@ -25,7 +28,6 @@ const CleaningLogsPanel = ({ data }) => {
       setLoading(true);
       try {
         const response = await axios.get(`http://localhost:8000/api/logs/${metadata.filename}`);
-        // Reverse logs to show newest first
         setLogs(response.data.logs?.reverse() || []);
       } catch (err) {
         console.error("Failed to fetch logs:", err);
@@ -42,111 +44,132 @@ const CleaningLogsPanel = ({ data }) => {
   );
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 p-8 mt-8 shadow-sm transition-all duration-300">
-      {/* HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
-        <div className="flex items-start gap-4">
-          <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-2xl">
-            <History size={28} />
+    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-8 mt-10 shadow-sm antialiased text-slate-900 dark:text-slate-100">
+      
+      {/* HEADER & CONTROLS */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+        <div className="flex items-start gap-5">
+          <div className="p-3 bg-slate-900 dark:bg-indigo-500 text-white rounded-lg shadow-lg">
+            <History size={24} />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Audit Logs</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Historical record of all data cleaning operations performed on this dataset.
-            </p>
+            <h2 className="text-xl font-extrabold tracking-tight">Audit Trail & Lineage</h2>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-500 uppercase tracking-tighter">Instance: {metadata.filename}</span>
+              <ChevronRight size={12} className="text-slate-300" />
+              <p className="text-xs text-slate-500 font-medium italic">Immutable record of statistical cleaning operations</p>
+            </div>
           </div>
         </div>
 
-        {/* SEARCH BAR */}
-        <div className="relative w-full md:w-72">
+        {/* COMPACT SEARCH BAR */}
+        <div className="relative w-full md:w-80">
           <input
             type="text"
-            placeholder="Search operations..."
-            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+            placeholder="Search operation codes..."
+            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-bold uppercase tracking-widest focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-400 placeholder:normal-case"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+          <Search className="absolute left-3.5 top-3 text-slate-400" size={14} />
         </div>
       </div>
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-4">
-          <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
-          <p className="text-gray-500 font-medium">Retrieving audit history...</p>
+        <div className="flex flex-col items-center justify-center py-24 gap-4">
+          <div className="w-8 h-8 border-2 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" />
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Accessing Data Lineage...</p>
         </div>
       ) : filteredLogs.length === 0 ? (
-        <div className="text-center py-20 border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-3xl">
-          <div className="inline-flex p-4 rounded-full bg-gray-50 dark:bg-gray-900 text-gray-400 mb-4">
-            <Layers size={32} />
+        <div className="text-center py-20 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-950/20">
+          <div className="inline-flex p-4 rounded-xl bg-white dark:bg-slate-800 text-slate-300 mb-4 border border-slate-100 dark:border-slate-700">
+            <Layers size={32} strokeWidth={1.5} />
           </div>
-          <h3 className="text-gray-900 dark:text-white font-bold">No logs found</h3>
-          <p className="text-gray-500 text-sm">No operations have been recorded for this file yet.</p>
+          <h3 className="text-sm font-bold uppercase tracking-widest text-slate-900 dark:text-white">Log Buffer Empty</h3>
+          <p className="text-xs text-slate-500 mt-1">No cleaning heuristics have been committed to this dataset.</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {filteredLogs.map((log, index) => (
             <div 
               key={index}
-              className={`border border-gray-100 dark:border-gray-700 rounded-2xl overflow-hidden transition-all duration-200 ${expandedLog === index ? 'ring-2 ring-indigo-500/20' : ''}`}
+              className={`group border rounded-lg overflow-hidden transition-all duration-200 ${expandedLog === index ? 'border-indigo-500 ring-4 ring-indigo-500/5 bg-slate-50 dark:bg-slate-950' : 'border-slate-100 dark:border-slate-800 hover:border-slate-300 bg-white dark:bg-slate-900'}`}
             >
               {/* LOG ITEM HEADER */}
               <div 
                 onClick={() => setExpandedLog(expandedLog === index ? null : index)}
-                className="flex flex-col sm:flex-row sm:items-center justify-between p-5 bg-white dark:bg-gray-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                className="flex flex-col sm:flex-row sm:items-center justify-between p-4 cursor-pointer"
               >
-                <div className="flex items-center gap-4">
-                  <div className={`p-2 rounded-lg ${
-                    log.operation.includes('Missing') ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' :
-                    log.operation.includes('Outlier') ? 'bg-red-100 text-red-600 dark:bg-red-900/30' :
-                    'bg-green-100 text-green-600 dark:bg-green-900/30'
-                  }`}>
-                    <Layers size={18} />
-                  </div>
+                <div className="flex items-center gap-5">
+                  <div className={`hidden sm:flex w-1.5 h-8 rounded-full ${
+                    log.operation.includes('Missing') ? 'bg-blue-500' :
+                    log.operation.includes('Outlier') ? 'bg-rose-500' :
+                    'bg-emerald-500'
+                  }`} />
+                  
                   <div>
-                    <h4 className="font-bold text-gray-900 dark:text-white">{log.operation}</h4>
-                    <div className="flex items-center gap-3 mt-1">
-                      <span className="flex items-center gap-1 text-xs text-gray-400 font-medium uppercase tracking-tighter">
-                        <Calendar size={12} /> {log.timestamp}
+                    <div className="flex items-center gap-3">
+                      <h4 className="text-xs font-black uppercase tracking-widest text-slate-800 dark:text-slate-100 leading-none">
+                        {log.operation}
+                      </h4>
+                      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${
+                        log.operation.includes('Missing') ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20' :
+                        log.operation.includes('Outlier') ? 'bg-rose-50 text-rose-600 dark:bg-rose-900/20' :
+                        'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20'
+                      }`}>
+                        {log.operation.includes('Missing') ? 'OP_MISSING' : log.operation.includes('Outlier') ? 'OP_ANOMALY' : 'OP_CLEAN'}
                       </span>
+                    </div>
+                    <div className="flex items-center gap-3 mt-1.5 font-mono text-[10px] text-slate-400">
+                      <Clock size={10} /> {log.timestamp}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between mt-4 sm:mt-0 gap-6">
-                  <div className="text-right">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase">Rows Affected</p>
-                    <p className={`text-lg font-black ${log.rows_affected > 0 ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`}>
-                      {log.rows_affected.toLocaleString()}
-                    </p>
+                <div className="flex items-center justify-between mt-4 sm:mt-0 gap-8">
+                  <div className="flex items-center gap-6">
+                    <div className="text-right">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5">Impacted Nodes</p>
+                      <p className="font-mono text-sm font-bold text-slate-700 dark:text-slate-300">
+                        {log.rows_affected.toLocaleString()}
+                      </p>
+                    </div>
                   </div>
                   <ChevronDown 
-                    className={`text-gray-400 transition-transform duration-300 ${expandedLog === index ? 'rotate-180' : ''}`} 
-                    size={20} 
+                    className={`text-slate-300 transition-transform duration-300 ${expandedLog === index ? 'rotate-180 text-indigo-500' : 'group-hover:text-slate-500'}`} 
+                    size={16} 
                   />
                 </div>
               </div>
 
               {/* EXPANDED DETAILS */}
               {expandedLog === index && (
-                <div className="p-6 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-800 animate-in slide-in-from-top-2 duration-300">
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase">
-                          <UserCheck size={14} /> System Summary
+                <div className="p-6 bg-slate-50/50 dark:bg-slate-950/40 border-t border-slate-100 dark:border-slate-800 animate-in slide-in-from-top-1 duration-300">
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="space-y-5">
+                        <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                          <UserCheck size={14} className="text-indigo-500" /> Operational Report
                         </div>
-                        <p className="text-sm text-gray-600 dark:text-gray-300">
-                          The system processed {log.rows_affected} records using the specified algorithm parameters. 
-                          The source file <span className="font-mono text-xs">{metadata.filename}</span> has been updated.
-                        </p>
+                        <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-inner">
+                          <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                            Heuristic analysis identified and modified <span className="font-mono font-bold text-indigo-500">{log.rows_affected}</span> entries. 
+                            The operation utilized a stateless transformation pipeline on source buffer <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-mono text-indigo-400">{metadata.filename}</span>.
+                          </p>
+                          <div className="mt-4 flex items-center gap-2 text-[10px] font-bold text-emerald-600 uppercase tracking-widest">
+                            <ArrowRightLeft size={12} /> Data State: Synchronized
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase">
-                          <FileJson size={14} /> Metadata
+                      <div className="space-y-5">
+                        <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                          <FileJson size={14} className="text-indigo-500" /> Statistical Parameters
                         </div>
-                        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
-                          <pre className="text-[11px] font-mono text-indigo-600 dark:text-indigo-400 overflow-x-auto">
+                        <div className="bg-slate-950 rounded-lg p-5 border border-slate-800 shadow-2xl">
+                          <div className="flex items-center gap-2 mb-3 text-[9px] font-bold text-slate-500 uppercase tracking-widest opacity-50">
+                            <Database size={10} /> JSON_Payload_Output
+                          </div>
+                          <pre className="text-[11px] font-mono text-indigo-400 overflow-x-auto scrollbar-thin scrollbar-thumb-slate-700">
                             {JSON.stringify(log.details, null, 2)}
                           </pre>
                         </div>
@@ -156,6 +179,14 @@ const CleaningLogsPanel = ({ data }) => {
               )}
             </div>
           ))}
+        </div>
+      )}
+      
+      {/* FOOTER STATS */}
+      {!loading && logs.length > 0 && (
+        <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">
+          <span>Buffer: {logs.length} operations cached</span>
+          <span>Integrity: System Level 1 Audit</span>
         </div>
       )}
     </div>

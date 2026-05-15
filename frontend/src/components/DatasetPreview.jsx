@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+
 import {
   Database,
   Table,
@@ -7,199 +8,606 @@ import {
   FileSpreadsheet,
   AlertCircle,
   ChevronRight,
-  Eye
+  Eye,
+  Loader2,
+  Filter,
+  ArrowDownWideNarrowIcon,
+  Sigma
 } from 'lucide-react';
 
+import StatisticsPanel from './StatisticsPanel';
+
 const DatasetPreview = ({ data }) => {
+
   const [activeTab, setActiveTab] = useState('schema');
 
-  // Handle null or undefined data gracefully
   if (!data || !data.metadata || !data.schema) {
+
     return (
-      <div className="w-full flex items-center justify-center p-12 text-gray-500">
-        <Loader2 className="animate-spin mr-2" /> Loading dataset context...
+
+      <div className="w-full flex flex-col items-center justify-center p-24 text-slate-500 bg-slate-50/50 dark:bg-slate-900/50 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+
+        <Loader2
+          className="animate-spin mb-4 text-indigo-500"
+          size={32}
+        />
+
+        <p className="text-sm font-medium tracking-wide">
+          Initializing Dataset Context...
+        </p>
+
       </div>
     );
   }
 
-  const { metadata, schema, preview } = data;
-  const previewColumns = preview && preview.length > 0 ? Object.keys(preview[0]) : [];
+  const {
+    metadata,
+    schema,
+    preview,
+    statistics
+  } = data;
+
+  const previewColumns = (
+    preview &&
+    preview.length > 0
+  )
+    ? Object.keys(preview[0])
+    : [];
 
   return (
-    <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 mt-4 sm:mt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-      {/* Top Meta Stats - Defensive access with toLocaleString */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 sm:mb-8">
-        {/* Dataset Card */}
-        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-4 transition-all hover:shadow-md">
-          <div className="p-3 bg-blue-50 dark:bg-blue-900/30 text-blue-600 rounded-xl shrink-0">
-            <FileSpreadsheet className="w-5 h-5 sm:w-6 sm:h-6" />
+    <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 mt-6 animate-in fade-in slide-in-from-bottom-2 duration-700">
+
+      {/* ================================================= */}
+      {/* DATASET HEADER / TOP STATS */}
+      {/* ================================================= */}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+
+        {/* ============================================= */}
+        {/* SOURCE INFO */}
+        {/* ============================================= */}
+
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-start gap-4">
+
+          <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg shrink-0 border border-indigo-100 dark:border-indigo-800">
+
+            <FileSpreadsheet size={20} />
+
           </div>
+
           <div className="min-w-0">
-            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider">Source File</p>
-            <h4 className="text-base sm:text-lg font-bold text-gray-800 dark:text-gray-100 truncate">
-              {metadata?.filename ?? 'Unknown File'}
+
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.15em] mb-1">
+
+              Source Dataset
+
+            </p>
+
+            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate leading-tight">
+
+              {metadata?.filename ?? 'system_buffer_01.csv'}
+
             </h4>
+
           </div>
+
         </div>
 
-        {/* Rows Card - Error Fix Applied Here */}
-        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-4 transition-all hover:shadow-md">
-          <div className="p-3 bg-green-50 dark:bg-green-900/30 text-green-600 rounded-xl shrink-0">
-            <Hash className="w-5 h-5 sm:w-6 sm:h-6" />
+        {/* ============================================= */}
+        {/* ROW COUNT */}
+        {/* ============================================= */}
+
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-start gap-4">
+
+          <div className="p-2.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg shrink-0 border border-emerald-100 dark:border-emerald-800">
+
+            <Hash size={20} />
+
           </div>
+
           <div>
-            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider">Total Rows</p>
-            <h4 className="text-xl sm:text-2xl font-black text-gray-800 dark:text-gray-100">
+
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.15em] mb-1">
+
+              Observations
+
+            </p>
+
+            <h4 className="text-xl font-mono font-bold text-slate-800 dark:text-slate-100 leading-none">
+
               {(metadata?.rows ?? 0).toLocaleString()}
+
             </h4>
+
           </div>
+
         </div>
 
-        {/* Columns Card - Error Fix Applied Here */}
-        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center gap-4 transition-all hover:shadow-md sm:col-span-2 lg:col-span-1">
-          <div className="p-3 bg-purple-50 dark:bg-purple-900/30 text-purple-600 rounded-xl shrink-0">
-            <Database className="w-5 h-5 sm:w-6 sm:h-6" />
+        {/* ============================================= */}
+        {/* COLUMN COUNT */}
+        {/* ============================================= */}
+
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-start gap-4">
+
+          <div className="p-2.5 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-lg shrink-0 border border-amber-100 dark:border-amber-800">
+
+            <Database size={20} />
+
           </div>
+
           <div>
-            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wider">Dimensions</p>
-            <h4 className="text-xl sm:text-2xl font-black text-gray-800 dark:text-gray-100">
-              {(metadata?.columns ?? 0).toLocaleString()} <span className="text-sm font-normal text-gray-400 uppercase tracking-tighter">Fields</span>
+
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.15em] mb-1">
+
+              Features
+
+            </p>
+
+            <h4 className="text-xl font-mono font-bold text-slate-800 dark:text-slate-100 leading-none">
+
+              {(metadata?.columns ?? 0).toLocaleString()}
+
             </h4>
+
           </div>
+
         </div>
+
+        {/* ============================================= */}
+        {/* DATA INTEGRITY */}
+        {/* ============================================= */}
+
+        <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-start gap-4">
+
+          <div className="p-2.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg shrink-0 border border-slate-200 dark:border-slate-700">
+
+            <Filter size={20} />
+
+          </div>
+
+          <div className="w-full">
+
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.15em] mb-1">
+
+              Data Integrity
+
+            </p>
+
+            <div className="flex items-center gap-2">
+
+              <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
+
+                High
+
+              </span>
+
+              <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+
+                <div className="h-full bg-emerald-500 w-[94%]"></div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
       </div>
 
-      {/* Main Container */}
-      <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/50 dark:shadow-none overflow-hidden">
+      {/* ================================================= */}
+      {/* MAIN DATA WORKBENCH */}
+      {/* ================================================= */}
 
-        {/* Tab Navigation */}
-        <div className="flex border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 overflow-x-auto">
-          <button
-            onClick={() => setActiveTab('schema')}
-            className={`flex-1 min-w-[150px] py-4 px-6 text-sm font-bold flex items-center justify-center gap-2 transition-all relative ${activeTab === 'schema'
-              ? 'text-purple-600 bg-white dark:bg-gray-800'
-              : 'text-gray-400 hover:bg-gray-100/50'
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xl shadow-slate-200/40 dark:shadow-none overflow-hidden">
+
+        {/* ================================================= */}
+        {/* TAB CONTROLS */}
+        {/* ================================================= */}
+
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 px-6 bg-slate-50/50 dark:bg-slate-900">
+
+          <div className="flex gap-8 flex-wrap">
+
+            {/* ========================================= */}
+            {/* SCHEMA TAB */}
+            {/* ========================================= */}
+
+            <button
+              onClick={() => setActiveTab('schema')}
+              className={`py-4 text-xs font-bold uppercase tracking-widest flex items-center gap-2.5 transition-all relative ${
+                activeTab === 'schema'
+                  ? 'text-indigo-600 dark:text-indigo-400'
+                  : 'text-slate-400 hover:text-slate-600'
               }`}
-          >
-            <Type size={18} />
-            Schema Inference
-            {activeTab === 'schema' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-purple-600 rounded-t-full" />}
-          </button>
-          <button
-            onClick={() => setActiveTab('preview')}
-            className={`flex-1 min-w-[150px] py-4 px-6 text-sm font-bold flex items-center justify-center gap-2 transition-all relative ${activeTab === 'preview'
-              ? 'text-purple-600 bg-white dark:bg-gray-800'
-              : 'text-gray-400 hover:bg-gray-100/50'
+            >
+
+              <Type size={16} />
+
+              Schema Definition
+
+              {activeTab === 'schema' && (
+
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 dark:bg-indigo-400" />
+
+              )}
+
+            </button>
+
+            {/* ========================================= */}
+            {/* PREVIEW TAB */}
+            {/* ========================================= */}
+
+            <button
+              onClick={() => setActiveTab('preview')}
+              className={`py-4 text-xs font-bold uppercase tracking-widest flex items-center gap-2.5 transition-all relative ${
+                activeTab === 'preview'
+                  ? 'text-indigo-600 dark:text-indigo-400'
+                  : 'text-slate-400 hover:text-slate-600'
               }`}
-          >
-            <Eye size={18} />
-            Data Preview
-            {activeTab === 'preview' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-purple-600 rounded-t-full" />}
-          </button>
+            >
+
+              <Eye size={16} />
+
+              Data Explorer
+
+              {activeTab === 'preview' && (
+
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 dark:bg-indigo-400" />
+
+              )}
+
+            </button>
+
+            {/* ========================================= */}
+            {/* STATISTICS TAB */}
+            {/* ========================================= */}
+
+            <button
+              onClick={() => setActiveTab('statistics')}
+              className={`py-4 text-xs font-bold uppercase tracking-widest flex items-center gap-2.5 transition-all relative ${
+                activeTab === 'statistics'
+                  ? 'text-indigo-600 dark:text-indigo-400'
+                  : 'text-slate-400 hover:text-slate-600'
+              }`}
+            >
+
+              <Sigma size={16} />
+
+              Statistics
+
+              {activeTab === 'statistics' && (
+
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 dark:bg-indigo-400" />
+
+              )}
+
+            </button>
+
+          </div>
+
+          {/* ========================================= */}
+          {/* RIGHT CONTROLS */}
+          {/* ========================================= */}
+
+          <div className="hidden sm:flex items-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+
+            <span>Filter</span>
+
+            <div className="h-4 w-px bg-slate-200 dark:border-slate-700"></div>
+
+            <span>Sort</span>
+
+          </div>
+
         </div>
 
         <div className="relative">
+
+          {/* ================================================= */}
+          {/* SCHEMA TABLE */}
+          {/* ================================================= */}
+
           {activeTab === 'schema' && (
+
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-gray-50/80 dark:bg-gray-900/40 text-gray-400 uppercase text-[10px] font-black tracking-widest border-b border-gray-100 dark:border-gray-700">
-                  <tr>
-                    <th className="px-6 py-5">Field Name</th>
-                    <th className="px-6 py-5">Type</th>
-                    <th className="px-6 py-5">DType</th>
-                    <th className="px-6 py-5 text-right">Completeness</th>
+
+              <table className="w-full text-left text-xs border-collapse">
+
+                <thead>
+
+                  <tr className="bg-slate-50/80 dark:bg-slate-950 text-slate-500 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200 dark:border-slate-800">
+
+                    <th className="px-6 py-4 font-black">
+                      Field Label
+                    </th>
+
+                    <th className="px-6 py-4">
+                      Semantic Type
+                    </th>
+
+                    <th className="px-6 py-4">
+                      Engine DType
+                    </th>
+
+                    <th className="px-6 py-4 text-right">
+                      Null Distribution
+                    </th>
+
                   </tr>
+
                 </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+
                   {schema.map((col, idx) => {
-                    const nullCount = metadata?.null_counts?.[col.column] ?? 0;
-                    const rowCount = metadata?.rows ?? 1; // Prevent division by zero
-                    const nullPercent = ((nullCount / rowCount) * 100).toFixed(1);
-                    const isHealthy = parseFloat(nullPercent) < 5;
+
+                    const nullCount =
+                      metadata?.null_counts?.[col.column] ?? 0;
+
+                    const rowCount =
+                      metadata?.rows ?? 1;
+
+                    const nullPercent = (
+                      (nullCount / rowCount) * 100
+                    ).toFixed(1);
+
+                    const isHealthy =
+                      parseFloat(nullPercent) < 5;
 
                     return (
-                      <tr key={idx} className="group hover:bg-purple-50/30 dark:hover:bg-purple-900/10 transition-colors">
-                        <td className="px-6 py-4 font-bold text-gray-800 dark:text-gray-100">{col.column}</td>
+
+                      <tr
+                        key={idx}
+                        className="group hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
+                      >
+
+                        <td className="px-6 py-4 font-mono font-bold text-slate-800 dark:text-slate-200">
+
+                          {col.column}
+
+                        </td>
+
                         <td className="px-6 py-4">
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase ${col.type === 'Numerical' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
-                            }`}>
+
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded border ${
+                            col.type === 'Numerical'
+                              ? 'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800'
+                              : 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+                          } text-[10px] font-bold`}>
+
                             {col.type}
+
                           </span>
+
                         </td>
-                        <td className="px-6 py-4 font-mono text-[11px] text-gray-500">{col.pandas_dtype}</td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex flex-col items-end gap-1">
-                            <span className={`text-xs font-bold ${nullCount > 0 ? 'text-amber-500' : 'text-green-500'}`}>
-                              {nullPercent}% Null
+
+                        <td className="px-6 py-4">
+
+                          <code className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-slate-500 dark:text-slate-400 text-[10px]">
+
+                            {col.pandas_dtype}
+
+                          </code>
+
+                        </td>
+
+                        <td className="px-6 py-4">
+
+                          <div className="flex flex-col items-end gap-1.5">
+
+                            <span className={`font-mono text-[10px] font-bold ${
+                              nullCount > 0
+                                ? 'text-amber-600'
+                                : 'text-emerald-600'
+                            }`}>
+
+                              {nullPercent}%
+
+                              <span className="text-[9px] opacity-60">
+                                NULL
+                              </span>
+
                             </span>
-                            <div className="w-20 h-1 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+
+                            <div className="w-24 h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+
                               <div
-                                className={`h-full rounded-full ${isHealthy ? 'bg-green-500' : 'bg-amber-500'}`}
-                                style={{ width: `${100 - nullPercent}%` }}
+                                className={`h-full transition-all duration-1000 ${
+                                  isHealthy
+                                    ? 'bg-emerald-500'
+                                    : 'bg-amber-500'
+                                }`}
+                                style={{
+                                  width: `${100 - nullPercent}%`
+                                }}
                               />
+
                             </div>
+
                           </div>
+
                         </td>
+
                       </tr>
                     );
                   })}
+
                 </tbody>
+
               </table>
+
             </div>
           )}
+
+          {/* ================================================= */}
+          {/* PREVIEW TABLE */}
+          {/* ================================================= */}
 
           {activeTab === 'preview' && (
-            <div className="overflow-x-auto custom-scrollbar">
-              <table className="w-full text-left text-sm whitespace-nowrap">
-                <thead className="bg-gray-50 dark:bg-gray-900 text-gray-400 uppercase text-[10px] font-black tracking-widest border-b border-gray-100 dark:border-gray-700">
-                  <tr>
-                    {/* Use .slice(1) if the first column is always the index you want to hide */}
+
+            <div className="overflow-x-auto">
+
+              <table className="w-full text-left text-[11px] whitespace-nowrap border-collapse">
+
+                <thead>
+
+                  <tr className="bg-slate-50 dark:bg-slate-950 text-slate-400 uppercase text-[9px] font-bold tracking-widest border-b border-slate-200 dark:border-slate-800">
+
                     {previewColumns.map((col, idx) => (
-                      <th key={idx} className="px-6 py-5 border-r border-gray-100/50 dark:border-gray-700/50 last:border-0">
-                        {col}
+
+                      <th
+                        key={idx}
+                        className="px-4 py-3 font-black border-r border-slate-100 dark:border-slate-800 last:border-0"
+                      >
+
+                        <div className="flex items-center justify-between gap-4">
+
+                          {col}
+
+                          <ArrowDownWideNarrowIcon
+                            size={12}
+                            className="opacity-30"
+                          />
+
+                        </div>
+
                       </th>
+
                     ))}
+
                   </tr>
+
                 </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+
                   {preview?.length > 0 ? (
+
                     preview.map((row, rowIdx) => (
-                      <tr key={rowIdx} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+
+                      <tr
+                        key={rowIdx}
+                        className="hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 transition-colors"
+                      >
+
                         {previewColumns.map((col, colIdx) => (
-                          <td key={colIdx} className="px-6 py-4 border-r border-gray-100/50 dark:border-gray-700/50 last:border-0">
+
+                          <td
+                            key={colIdx}
+                            className="px-4 py-2.5 border-r border-slate-100 dark:border-slate-800 last:border-0 font-mono"
+                          >
+
                             {row[col] === null ? (
-                              <span className="flex items-center gap-1 text-red-400 dark:text-red-900/50 italic text-xs font-normal">
-                                null
+
+                              <span className="text-red-300 dark:text-red-900/40 italic">
+
+                                ∅ null
+
                               </span>
+
                             ) : (
-                              <span className="font-mono text-xs text-gray-600 dark:text-gray-300">
-                                {String(row[col])}
+
+                              <span className="text-slate-600 dark:text-slate-400">
+
+                                {typeof row[col] === 'number'
+                                  ? row[col].toLocaleString()
+                                  : String(row[col])}
+
                               </span>
+
                             )}
+
                           </td>
+
                         ))}
+
                       </tr>
+
                     ))
+
                   ) : (
+
                     <tr>
-                      <td colSpan={previewColumns.length || 1} className="p-12 text-center text-gray-500 italic">
-                        No preview data available
+
+                      <td
+                        colSpan={previewColumns.length || 1}
+                        className="p-20 text-center text-slate-400 italic font-medium"
+                      >
+
+                        No records available for preview.
+
                       </td>
+
                     </tr>
+
                   )}
+
                 </tbody>
+
               </table>
 
-              <div className="p-4 bg-gray-50/50 dark:bg-gray-900/20 flex items-center justify-between border-t border-gray-100 dark:border-gray-700">
-                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                  Showing top {preview?.length || 0} rows of {(metadata?.rows ?? 0).toLocaleString()}
+              {/* ============================================= */}
+              {/* FOOTER BAR */}
+              {/* ============================================= */}
+
+              <div className="px-6 py-3 bg-slate-50/80 dark:bg-slate-950 flex items-center justify-between border-t border-slate-200 dark:border-slate-800">
+
+                <div className="flex items-center gap-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+
+                  <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
+
+                    <Table size={12} />
+
+                    Viewing Head: {preview?.length || 0} Records
+
+                  </span>
+
+                  <span className="text-slate-300 dark:text-slate-700">
+                    |
+                  </span>
+
+                  <span>
+
+                    Full Dataset Context:
+                    {(metadata?.rows ?? 0).toLocaleString()} Rows
+
+                  </span>
+
                 </div>
+
+                <button className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline uppercase tracking-widest">
+
+                  Export Metadata (JSON)
+
+                </button>
+
               </div>
+
             </div>
           )}
+
+          {/* ================================================= */}
+          {/* STATISTICS PANEL */}
+          {/* ================================================= */}
+
+          {activeTab === 'statistics' && (
+
+            <div className="p-6">
+
+              <StatisticsPanel
+                statistics={statistics}
+              />
+
+            </div>
+
+          )}
+
         </div>
+
       </div>
+
     </div>
   );
 };
