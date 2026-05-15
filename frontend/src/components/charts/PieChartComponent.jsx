@@ -8,22 +8,36 @@ import {
   Cell
 } from "recharts";
 
-// Modern color palette for categorical data
+// Professional divergent & sequential palette for analytical clarity
 const COLORS = [
-  "#8b5cf6", "#3b82f6", "#10b981", "#f59e0b", 
-  "#ef4444", "#ec4899", "#06b6d4", "#84cc16"
+  "#6366f1", "#4f46e5", "#4338ca", "#3730a3", 
+  "#312e81", "#1e1b4b", "#4338ca", "#5850ec"
 ];
 
+/**
+ * Technical Tooltip
+ * High-density information display using monospaced fonts for precision.
+ */
 const CustomTooltip = ({ active, payload }) => {
   if (active && payload && payload.length) {
+    const data = payload[0].payload;
     return (
-      <div className="bg-white dark:bg-gray-800 p-3 border border-gray-100 dark:border-gray-700 shadow-xl rounded-lg">
-        <p className="text-sm font-bold text-gray-800 dark:text-gray-100">
-          {payload[0].name}
+      <div className="bg-slate-900 border border-slate-700 shadow-2xl p-3 rounded-md backdrop-blur-md opacity-95">
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 border-b border-slate-800 pb-1">
+          Categorical Audit
         </p>
-        <p className="text-sm font-medium text-purple-600 dark:text-purple-400">
-          Value: <span className="font-mono">{payload[0].value.toLocaleString()}</span>
-        </p>
+        <div className="space-y-1.5">
+          <div className="flex justify-between gap-8">
+            <span className="text-xs text-slate-400 font-medium">Dimension:</span>
+            <span className="text-xs font-bold text-white tracking-tight">{payload[0].name}</span>
+          </div>
+          <div className="flex justify-between gap-8">
+            <span className="text-xs text-slate-400 font-medium">Magnitude:</span>
+            <span className="text-xs font-mono font-bold text-indigo-400">
+              {payload[0].value.toLocaleString()}
+            </span>
+          </div>
+        </div>
       </div>
     );
   }
@@ -34,7 +48,8 @@ const PieChartComponent = ({ data, nameKey = "label", dataKey = "count" }) => {
   if (!data || data.length === 0) return null;
 
   return (
-    <div className="w-full h-96 p-4 bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+    /* Removed fixed h-96, p-4, background, and rounded corners to make it fully dynamic */
+    <div className="w-full h-full min-h-[250px] relative transition-all duration-300">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
@@ -43,30 +58,36 @@ const PieChartComponent = ({ data, nameKey = "label", dataKey = "count" }) => {
             dataKey={dataKey}
             cx="50%"
             cy="50%"
-            innerRadius={70}  // Makes it a Donut Chart
-            outerRadius={100}
-            paddingAngle={5}  // Spacing between segments
-            stroke="none"     // Removes white borders
+            innerRadius="65%"  // Percentage-based for dynamic container scaling
+            outerRadius="90%"
+            paddingAngle={2}    // Reduced for a more "continuous" statistical look
+            stroke="#ffffff"    // Subtle separation for overlapping dark modes
+            strokeWidth={1}
             animationBegin={0}
-            animationDuration={1200}
+            animationDuration={800}
+            className="outline-none"
           >
             {data.map((entry, index) => (
               <Cell 
                 key={`cell-${index}`} 
                 fill={COLORS[index % COLORS.length]} 
-                className="hover:opacity-80 transition-opacity cursor-pointer"
+                className="hover:saturate-150 transition-all cursor-crosshair outline-none"
               />
             ))}
           </Pie>
 
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip 
+            content={<CustomTooltip />} 
+            animationDuration={200}
+          />
           
           <Legend 
             verticalAlign="bottom" 
-            height={36} 
-            iconType="circle"
+            align="center"
+            iconType="rect" // More professional "block" style than circle
+            iconSize={10}
             formatter={(value) => (
-              <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.15em] ml-1">
                 {value}
               </span>
             )}

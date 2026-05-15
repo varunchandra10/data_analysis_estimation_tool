@@ -1,16 +1,8 @@
 import { useState } from 'react';
 import {
-  LayoutDashboard,
-  Droplets,
-  AlertTriangle,
-  Copy,
-  Settings,
-  History,
-  LogOut,
-  ChevronRight,
-  ShieldCheck, // New Icon for Validation
-  Menu,
-  X
+  LayoutDashboard, Droplets, AlertTriangle, Copy, Settings,
+  History, LogOut, ChevronRight, ShieldCheck, Scale,
+  BarChart3, Sparkles, Menu, X, Database, Activity, FileSpreadsheet
 } from 'lucide-react';
 
 import FileUpload from './components/FileUpload';
@@ -20,6 +12,9 @@ import OutlierPanel from './components/OutlierPanel';
 import DuplicatePanel from './components/DuplicatePanel';
 import RuleValidationPanel from './components/ValidationPanel';
 import CleaningLogsPanel from './components/CleaningLogsPanel';
+import WeightEstimationPanel from './components/WeightEstimationPanel';
+import AnalyticsDashboard from './components/AnalyticsDashboard';
+import AIEngine from './components/AIEngine';
 
 import './App.css';
 
@@ -28,14 +23,23 @@ function App() {
   const [activeTab, setActiveTab] = useState('overview');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // UPDATED: Added Validation to navItems
+  const [validationResult, setValidationResult] = useState(null);
+  const [estimationResult, setEstimationResult] = useState(null);
+  const [outlierResult, setOutlierResult] = useState(null);
+  const [duplicateResult, setDuplicateResult] = useState(null);
+
+  const [aiResults, setAIResults] = useState(null);
+  const [aiLoading, setAILoading] = useState(false);
+
   const navItems = [
-    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-    { id: 'missing', label: 'Missing', icon: Droplets },
-    { id: 'outliers', label: 'Outliers', icon: AlertTriangle },
-    { id: 'duplicates', label: 'Duplicates', icon: Copy },
-    { id: 'validation', label: 'Rules', icon: ShieldCheck }, // Added this section
-    { id: 'logs', label: 'Audit', icon: History },
+    { id: 'overview', label: 'Dataset Explorer', icon: Database },
+    { id: 'missing', label: 'Null Analysis', icon: Droplets },
+    { id: 'outliers', label: 'Anomaly Detection', icon: AlertTriangle },
+    { id: 'duplicates', label: 'Deduping', icon: Copy },
+    { id: 'validation', label: 'Logic Validation', icon: ShieldCheck },
+    { id: 'estimation', label: 'Weighting Engine', icon: Scale },
+    { id: 'analytics', label: 'Statistical Insights', icon: BarChart3 },
+    { id: 'logs', label: 'Audit Trail', icon: History }
   ];
 
   const handleTabChange = (id) => {
@@ -43,148 +47,182 @@ function App() {
     setIsMobileMenuOpen(false);
   };
 
+  const handleReset = () => {
+    setDatasetData(null);
+    setActiveTab('overview');
+    setValidationResult(null);
+    setEstimationResult(null);
+    setOutlierResult(null);
+    setDuplicateResult(null);
+    setAIResults(null);
+    setIsMobileMenuOpen(false);
+  };
+
   return (
-    <div className="min-h-screen bg-[#fcfcfd] dark:bg-[#08060d] text-gray-900 dark:text-gray-100 flex flex-col font-sans overflow-x-hidden">
-      {/* HEADER */}
-      <header className="border-b border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl sticky top-0 z-50 w-full">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-purple-600 via-purple-500 to-blue-500 flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
-              <span className="font-black text-lg sm:text-xl">D</span>
-            </div>
-            <div>
-              <h1 className="text-base sm:text-lg font-bold tracking-tight leading-none">DAET Platform</h1>
-              <span className="hidden sm:inline-block text-[10px] text-purple-500 font-bold uppercase tracking-widest">Enterprise Analytics</span>
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#020617] text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-indigo-100 dark:selection:bg-indigo-900/30">
+
+      {datasetData && (
+        <AIEngine
+          datasetData={datasetData}
+          setAIResults={setAIResults}
+          setAILoading={setAILoading}
+        />
+      )}
+
+      {/* HEADER: Refined with tighter padding and sharper borders */}
+      <header className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 sticky top-0 z-[60] w-full shadow-sm">
+        <div className="max-w-[1800px] mx-auto px-4 py-2.5 flex items-center justify-between">
+
+          <div className="flex items-center gap-4">
+            {datasetData && (
+              <button
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="lg:hidden p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
+              >
+                <Menu size={18} />
+              </button>
+            )}
+
+            {/* BRANDING: More minimalist and corporate */}
+            <div className="flex items-center gap-3 border-r border-slate-200 dark:border-slate-800 pr-4">
+              <div className="w-8 h-8 rounded bg-slate-900 dark:bg-white flex items-center justify-center text-white dark:text-slate-900">
+                <Activity size={18} />
+              </div>
+              <div>
+                <h1 className="text-sm font-bold tracking-tight uppercase leading-none">DAET <span className="font-light text-slate-500">Workbench</span></h1>
+                <span className="text-[10px] text-slate-400 font-medium uppercase tracking-[0.2em]">v2.4.0-Stable</span>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4">
-            <nav className="hidden lg:flex gap-1">
-              <button className="px-4 py-2 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">Documentation</button>
-            </nav>
-            <div className="hidden sm:block h-6 w-[1px] bg-gray-200 dark:bg-gray-800 mx-1" />
-            <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
-              <Settings size={20} className="text-gray-500" />
-            </button>
+          <div className="flex items-center gap-3">
             {datasetData && (
-              <button
-                onClick={() => { setDatasetData(null); setActiveTab('overview'); }}
-                className="lg:hidden p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full"
-              >
-                <LogOut size={20} />
-              </button>
+              <div className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={14} className={aiLoading ? "text-indigo-500 animate-pulse" : "text-slate-400"} />
+                  <span className="text-[11px] font-mono font-medium text-slate-600 dark:text-slate-400 uppercase tracking-tight">
+                    {aiLoading ? 'Neural Engine Active' : 'Model Ready'}
+                  </span>
+                </div>
+              </div>
             )}
+
+            <div className="h-6 w-px bg-slate-200 dark:border-slate-800 mx-1" />
+
+            <button className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 transition-all">
+              <Settings size={18} />
+            </button>
           </div>
         </div>
       </header>
 
-      <main className="flex-grow flex flex-col w-full max-w-[1600px] mx-auto overflow-hidden">
+      <main className="flex-grow flex flex-col w-full max-w-[1800px] mx-auto overflow-hidden">
+
         {!datasetData ? (
-          <div className="flex-grow flex flex-col items-center justify-center px-4 sm:px-6 py-12 sm:py-20">
-            <div className="text-center max-w-3xl mx-auto mb-10 sm:mb-16 animate-in fade-in zoom-in duration-1000">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800 text-purple-600 dark:text-purple-400 text-[10px] sm:text-xs font-bold mb-4 sm:mb-6">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
-                </span>
-                v2.0 Clean Engine is Live
+          <div className="flex-grow flex flex-col items-center justify-center px-6 py-12">
+            <div className="text-center max-w-2xl mb-12">
+              <div className="flex justify-center mb-6">
+                <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800">
+                  <FileSpreadsheet size={48} className="text-indigo-600" />
+                </div>
               </div>
-              <h2 className="text-3xl sm:text-5xl lg:text-7xl font-extrabold tracking-tight mb-4 sm:mb-8 leading-tight">
-                Precision Data <br className="hidden sm:block" />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-indigo-500 to-blue-500">
-                  Refining Pipeline
-                </span>
+              <h2 className="text-4xl font-semibold tracking-tight text-slate-900 dark:text-white mb-4">
+                Statistically Sound <span className="text-indigo-600 font-light italic">Data Refinement</span>
               </h2>
-              <p className="text-sm sm:text-lg lg:text-xl text-gray-500 dark:text-gray-400 max-w-2xl mx-auto leading-relaxed px-4">
-                Automated schema detection, outlier removal, and redundancy processing for complex survey datasets.
+              <p className="text-slate-500 dark:text-slate-400 leading-relaxed font-light">
+                Professional toolkit for data validation, weight estimation, and anomaly detection.
+                Optimized for high-fidelity survey analysis and enterprise reporting.
               </p>
             </div>
-            <div className="w-full max-w-4xl animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-300 fill-mode-both px-2 sm:px-4">
-              <FileUpload onUploadSuccess={(data) => setDatasetData(data)} />
+
+            <div className="w-full max-w-3xl border border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-2 bg-white/50 dark:bg-slate-900/50">
+              <FileUpload
+                onUploadSuccess={(data) => {
+                  setDatasetData(data);
+                  setActiveTab('overview'); // Force view to explorer immediately
+                }}
+              />
             </div>
           </div>
         ) : (
-          <div className="flex flex-col lg:flex-row flex-grow overflow-hidden h-[calc(100vh-61px)] lg:h-[calc(100vh-65px)]">
-            <aside className="hidden lg:flex w-72 border-r border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900/50 p-6 flex flex-col gap-8 shrink-0">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Analysis Suite</p>
-                <button
-                  onClick={() => { setDatasetData(null); setActiveTab('overview'); }}
-                  className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 rounded-lg transition-colors"
-                >
-                  <LogOut size={16} />
-                </button>
-              </div>
-              <nav className="flex flex-col gap-1">
-                {navItems.map((item) => {
-                  const Icon = item.icon;
-                  return (
+          <div className="flex flex-col lg:flex-row flex-grow overflow-hidden h-[calc(100vh-57px)]">
+
+            {/* DESKTOP SIDEBAR: Industrial look */}
+            <aside className="hidden lg:flex w-64 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4 flex flex-col gap-6 shrink-0">
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 px-2">Analysis Pipeline</p>
+                <nav className="flex flex-col gap-0.5">
+                  {navItems.map((item) => (
                     <button
                       key={item.id}
                       onClick={() => handleTabChange(item.id)}
-                      className={`flex items-center justify-between px-4 py-3 rounded-xl transition-all font-medium text-sm group ${activeTab === item.id
-                        ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'
-                        : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                      className={`flex items-center gap-3 px-3 py-2 rounded transition-all text-sm font-medium border-l-2 ${activeTab === item.id
+                          ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 border-indigo-600'
+                          : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-900 border-transparent'
                         }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <Icon size={18} />
-                        {item.label}
-                      </div>
-                      <ChevronRight size={14} className={`opacity-0 group-hover:opacity-100 transition-opacity ${activeTab === item.id ? 'hidden' : ''}`} />
+                      <item.icon size={16} strokeWidth={activeTab === item.id ? 2.5 : 2} />
+                      {item.label}
                     </button>
-                  );
-                })}
-              </nav>
-              <div className="mt-auto p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700">
-                <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Active File</p>
-                <p className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate mb-1">
-                  {datasetData.metadata.filename}
-                </p>
-                <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                  <p className="text-[10px] text-gray-500">Ready for processing</p>
+                  ))}
+                </nav>
+              </div>
+
+              <div className="mt-auto">
+                <div className="p-3 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                    <p className="text-[10px] font-mono font-bold text-slate-400 uppercase">System Status</p>
+                  </div>
+                  <p className="text-[11px] font-medium text-slate-700 dark:text-slate-300 truncate font-mono">{datasetData.metadata.filename}</p>
+                  <button
+                    onClick={handleReset}
+                    className="mt-3 w-full flex items-center justify-center gap-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded transition-all"
+                  >
+                    <LogOut size={12} /> Terminate Session
+                  </button>
                 </div>
               </div>
             </aside>
 
-            {/* MOBILE TAB BAR */}
-            <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 flex justify-around items-center py-2 px-1 z-50 backdrop-blur-lg bg-opacity-90">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => handleTabChange(item.id)}
-                    className={`flex flex-col items-center gap-1 px-3 py-1 rounded-lg transition-all ${activeTab === item.id ? 'text-purple-600' : 'text-gray-400'}`}
-                  >
-                    <Icon size={20} />
-                    <span className="text-[10px] font-bold uppercase">{item.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
+            {/* MAIN WORKSPACE */}
+            <section className="flex-grow overflow-y-auto bg-white dark:bg-[#020617] custom-scrollbar">
+              <div className="p-6 lg:p-8 max-w-[1400px]">
 
-            <section className="flex-grow overflow-y-auto bg-[#f8f9fc] dark:bg-[#08060d] p-4 sm:p-6 lg:p-8 custom-scrollbar pb-20 lg:pb-8">
-              <div className="max-w-5xl mx-auto">
-                <div className="mb-6 sm:mb-8">
-                  <h2 className="text-xl sm:text-2xl lg:text-3xl font-black text-gray-900 dark:text-white capitalize flex items-center gap-2">
-                    <span className="lg:hidden">
-                      {(() => {
-                        const ActiveIcon = navItems.find(n => n.id === activeTab)?.icon;
-                        return ActiveIcon ? <ActiveIcon size={24} className="text-purple-600" /> : null;
-                      })()}
-                    </span>
-                    {navItems.find(n => n.id === activeTab)?.label}
-                  </h2>
-                  <div className="h-1 w-10 sm:w-12 bg-purple-600 rounded-full mt-2" />
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4 border-b border-slate-100 dark:border-slate-800 pb-6">
+                  <div>
+                    <div className="flex items-center gap-2 text-slate-400 mb-1">
+                      <span className="text-[10px] font-mono uppercase tracking-tighter">Workspace</span>
+                      <ChevronRight size={10} />
+                      <span className="text-[10px] font-mono uppercase tracking-tighter text-indigo-500">
+                        {activeTab}
+                      </span>
+                    </div>
+                    <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white capitalize">
+                      {navItems.find(n => n.id === activeTab)?.label}
+                    </h2>
+                  </div>
+
+                  {/* METRIC CHIPS: Quick context for statisticians */}
+                  <div className="flex gap-4">
+                    <div className="px-3 py-1 border-r border-slate-200 dark:border-slate-800 text-right">
+                      <p className="text-[10px] text-slate-400 uppercase font-bold">Samples</p>
+                      <p className="text-sm font-mono font-bold">{datasetData.metadata.rows?.toLocaleString() || '0'}</p>
+                    </div>
+                    <div className="px-3 py-1 text-right">
+                      <p className="text-[10px] text-slate-400 uppercase font-bold">Variables</p>
+                      <p className="text-sm font-mono font-bold">{Object.keys(datasetData.preview[0] || {}).length}</p>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="animate-in fade-in slide-in-from-right-4 duration-500 w-full overflow-hidden">
-                  {activeTab === 'overview' && <DatasetPreview data={datasetData} />}
+                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  {activeTab === 'overview' && <DatasetPreview data={datasetData} aiResults={aiResults} />}
+
                   {activeTab === 'missing' && (
                     <MissingValuePanel
                       data={datasetData}
+                      aiInsights={aiResults?.missing_value_insights || []}
                       onCleaningComplete={(result) => {
                         setDatasetData(prev => ({
                           ...prev,
@@ -194,11 +232,17 @@ function App() {
                       }}
                     />
                   )}
-                  {activeTab === 'outliers' && <OutlierPanel data={datasetData} />}
+
+                  {activeTab === 'outliers' && (
+                    <OutlierPanel data={datasetData} aiInsights={aiResults?.outlier_insights || []} onResult={(res) => setOutlierResult(res)} />
+                  )}
+
                   {activeTab === 'duplicates' && (
                     <DuplicatePanel
                       data={datasetData}
+                      aiInsights={aiResults?.duplicate_insights || []}
                       onProcessComplete={(result) => {
+                        setDuplicateResult(result);
                         setDatasetData(prev => ({
                           ...prev,
                           preview: result.preview,
@@ -207,11 +251,26 @@ function App() {
                       }}
                     />
                   )}
-                  {/* UPDATED: Matches ID 'validation' from navItems */}
+
                   {activeTab === 'validation' && (
-                    <RuleValidationPanel data={datasetData} />
+                    <RuleValidationPanel data={datasetData} aiInsights={aiResults?.validation_insights || []} onValidationComplete={(res) => setValidationResult(res)} />
                   )}
-                  
+
+                  {activeTab === 'estimation' && (
+                    <WeightEstimationPanel data={datasetData} aiInsights={aiResults?.weight_estimation_insights || []} onEstimationComplete={(res) => setEstimationResult(res)} />
+                  )}
+
+                  {activeTab === 'analytics' && (
+                    <AnalyticsDashboard
+                      datasetData={datasetData}
+                      validationResult={validationResult}
+                      estimationResult={estimationResult}
+                      outlierResult={outlierResult}
+                      duplicateResult={duplicateResult}
+                      aiResults={aiResults}
+                    />
+                  )}
+
                   {activeTab === 'logs' && <CleaningLogsPanel data={datasetData} />}
                 </div>
               </div>
@@ -220,19 +279,32 @@ function App() {
         )}
       </main>
 
-      {!datasetData && (
-        <footer className="border-t border-gray-100 dark:border-gray-800 py-6 sm:py-10">
-          <div className="max-w-7xl mx-auto px-6 flex flex-col items-center gap-4">
-            <div className="flex gap-4 sm:gap-8 text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-widest">
-              <a href="#" className="hover:text-purple-500 transition-colors">Privacy</a>
-              <a href="#" className="hover:text-purple-500 transition-colors">Terms</a>
-              <a href="#" className="hover:text-purple-500 transition-colors">Support</a>
+      {/* MOBILE DRAWER: Updated for consistency */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-[100] lg:hidden">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setIsMobileMenuOpen(false)} />
+          <aside className="fixed inset-y-0 left-0 w-[280px] bg-white dark:bg-slate-950 shadow-2xl p-6 flex flex-col gap-6 animate-in slide-in-from-left duration-300">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Navigation</h3>
+              <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
+                <X size={18} />
+              </button>
             </div>
-            <p className="text-xs sm:text-sm text-gray-400 font-medium text-center">
-              © 2026 MOSPI DAET Platform. <br className="sm:hidden" /> Engineered for Data Integrity.
-            </p>
-          </div>
-        </footer>
+            <nav className="flex flex-col gap-2">
+              {navItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => handleTabChange(item.id)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded text-sm font-medium ${activeTab === item.id ? 'bg-indigo-600 text-white' : 'text-slate-500'
+                    }`}
+                >
+                  <item.icon size={18} />
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+          </aside>
+        </div>
       )}
     </div>
   );
