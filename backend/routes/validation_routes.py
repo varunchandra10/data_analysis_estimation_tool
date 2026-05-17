@@ -9,6 +9,7 @@ from utils.file_utils import (
 from utils.validation_utils import (
     evaluate_condition
 )
+from utils.file_utils import safe_json_replace
 
 from core.config import (
     MAX_VIOLATIONS_RETURNED
@@ -17,6 +18,8 @@ from core.config import (
 router = APIRouter()
 
 from utils.log_utils import log_calls
+from services.versioning_engine import save_stage_dataset, read_dataset_file
+from utils.dataset_storage import resolve_dataset_name
 
 
 @router.post("/api/validation/run")
@@ -34,13 +37,7 @@ async def run_validation(
         []
     )
 
-    if str(path).endswith(".csv"):
-
-        df = pd.read_csv(path)
-
-    else:
-
-        df = pd.read_excel(path)
+    df = read_dataset_file(path)
 
     violations = []
 
@@ -92,9 +89,22 @@ async def run_validation(
                     "severity": severity
                 })
 
+    saved_path = save_stage_dataset(
+        dataset_source=df,
+        dataset_name=resolve_dataset_name(path),
+        stage_name="validation",
+        file_extension=path.suffix,
+    )
+
     return {
 
         "status": "success",
+
+        "file_path": str(saved_path),
+
+        "preview": safe_json_replace(
+            df.head(5)
+        ),
 
         "total_violations": len(
             violations

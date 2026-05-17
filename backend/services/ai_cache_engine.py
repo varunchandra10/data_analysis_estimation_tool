@@ -1,31 +1,17 @@
 import json
-from pathlib import Path
 from datetime import datetime
 
 from utils.log_utils import log_calls
-
-# =========================================================
-# AI CACHE DIRECTORY
-# =========================================================
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-
-AI_CACHE_DIR = BASE_DIR / "ai_cache"
-
-AI_CACHE_DIR.mkdir(
-    parents=True,
-    exist_ok=True
-)
+from utils.dataset_storage import ai_cache_path, ensure_dataset_layout, resolve_dataset_name
 
 # =========================================================
 # CACHE FILE PATH
 # =========================================================
 
 def get_cache_path(dataset_name: str):
-
-    dataset_stem = Path(dataset_name).stem
-
-    return AI_CACHE_DIR / f"{dataset_stem}_ai_cache.json"
+    resolved_dataset_name = resolve_dataset_name(dataset_name)
+    ensure_dataset_layout(resolved_dataset_name)
+    return ai_cache_path(resolved_dataset_name)
 
 # =========================================================
 # DEFAULT CACHE STRUCTURE
@@ -48,7 +34,9 @@ def default_cache_structure():
 
         "weighting": {},
 
-        "dataset_summary": {}
+        "dataset_summary": {},
+
+        "profiles": {}
     }
 
 # =========================================================
@@ -62,7 +50,7 @@ def create_ai_cache(dataset_name: str):
 
     cache_data = default_cache_structure()
 
-    with open(cache_path, "w") as f:
+    with open(cache_path, "w", encoding="utf-8") as f:
 
         json.dump(
             cache_data,
@@ -91,7 +79,7 @@ def load_ai_cache(dataset_name: str):
 
     try:
 
-        with open(cache_path, "r") as f:
+        with open(cache_path, "r", encoding="utf-8") as f:
 
             cache_data = json.load(f)
 
@@ -118,7 +106,7 @@ def save_ai_cache(
         "%Y-%m-%d %H:%M:%S"
     )
 
-    with open(cache_path, "w") as f:
+    with open(cache_path, "w", encoding="utf-8") as f:
 
         json.dump(
             cache_data,
@@ -152,6 +140,17 @@ def update_ai_cache_section(
     )
 
     return cache
+
+
+@log_calls
+def get_ai_cache_section(
+    dataset_name: str,
+    section: str,
+    default=None
+):
+
+    cache = load_ai_cache(dataset_name)
+    return cache.get(section, default)
 
 
 # =========================================================
@@ -253,6 +252,10 @@ def get_ai_cache_summary(dataset_name: str):
 
             "dataset_summary": len(
                 cache.get("dataset_summary", {})
+            ),
+
+            "profiles": len(
+                cache.get("profiles", {})
             )
         }
     }

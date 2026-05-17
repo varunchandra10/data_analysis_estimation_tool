@@ -1,20 +1,18 @@
 from fastapi import APIRouter, HTTPException
 
-import pandas as pd
-
 from services.weighting_engine import run_weight_estimation
+from services.versioning_engine import save_stage_dataset
+from utils.file_utils import load_dataframe_from_path
 from utils.file_utils import validate_file_path
 from utils.log_utils import log_calls
 from utils.stats_utils import get_comprehensive_stats
+from utils.dataset_storage import resolve_dataset_name
 
 router = APIRouter()
 
 
 def _load_dataframe(path):
-    if str(path).endswith(".csv"):
-        return pd.read_csv(path)
-
-    return pd.read_excel(path)
+    return load_dataframe_from_path(path)
 
 
 @router.post("/api/statistics/profile")
@@ -70,8 +68,16 @@ async def estimate_statistics(payload: dict):
             confidence_level=confidence_level,
         )
 
+        saved_path = save_stage_dataset(
+            dataset_source=df,
+            dataset_name=resolve_dataset_name(path),
+            stage_name="estimation",
+            file_extension=path.suffix,
+        )
+
         return {
             "status": "success",
+            "file_path": str(saved_path),
             **result,
         }
     except HTTPException:

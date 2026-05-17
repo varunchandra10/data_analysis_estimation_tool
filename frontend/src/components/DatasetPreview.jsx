@@ -17,7 +17,7 @@ import {
 
 import StatisticsPanel from './StatisticsPanel';
 
-const DatasetPreview = ({ data }) => {
+const DatasetPreview = ({ data, aiResults }) => {
 
   const [activeTab, setActiveTab] = useState('schema');
 
@@ -53,6 +53,8 @@ const DatasetPreview = ({ data }) => {
   )
     ? Object.keys(preview[0])
     : [];
+
+  const aiRecommendations = aiResults?.recommendations || [];
 
   return (
 
@@ -195,6 +197,53 @@ const DatasetPreview = ({ data }) => {
         </div>
 
       </div>
+
+      {aiRecommendations.length > 0 && (
+        <div className="mb-8 rounded-2xl border border-indigo-100 dark:border-indigo-900/40 bg-indigo-50/60 dark:bg-indigo-950/20 overflow-hidden shadow-sm">
+          <div className="px-6 py-4 border-b border-indigo-100 dark:border-indigo-900/30 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">AI Recommendations</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Backend recommendations returned for {aiRecommendations.length} column{aiRecommendations.length === 1 ? '' : 's'}.</p>
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-white/70 dark:bg-slate-900/70 px-3 py-1 rounded-full border border-indigo-100 dark:border-indigo-900/40">
+              {aiResults?.status || 'success'}
+            </span>
+          </div>
+          <div className="grid gap-3 p-6 md:grid-cols-2 xl:grid-cols-3">
+            {aiRecommendations.slice(0, 6).map((item, index) => {
+              const recommendation = item.recommendations || {};
+              const warnings = recommendation.warnings || [];
+
+              return (
+                <div key={index} className="rounded-xl border border-indigo-100 dark:border-indigo-900/30 bg-white dark:bg-slate-950 p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{item.column}</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 mt-1">{item.type}</p>
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 rounded-full">
+                      {recommendation.confidence ?? 0}%
+                    </span>
+                  </div>
+                  <div className="mt-3 space-y-2 text-xs text-slate-600 dark:text-slate-400">
+                    <div>
+                      <span className="font-bold text-slate-500 uppercase tracking-wider">Missing:</span> {recommendation.missing_value_method || 'review'}
+                    </div>
+                    <div>
+                      <span className="font-bold text-slate-500 uppercase tracking-wider">Outlier:</span> {recommendation.outlier_method || 'review'}
+                    </div>
+                    {warnings.length > 0 && (
+                      <div className="text-amber-600 dark:text-amber-400">
+                        {warnings[0]}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ================================================= */}
       {/* MAIN DATA WORKBENCH */}

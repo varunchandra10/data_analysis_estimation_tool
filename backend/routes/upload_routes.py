@@ -3,14 +3,12 @@ from fastapi import UploadFile
 from fastapi import File
 from fastapi import HTTPException
 
-import pandas as pd
-import shutil
-import os
+from pathlib import Path
+from io import BytesIO
 
-from core.config import (
-    DATASETS_DIR,
-    MAX_ROWS
-)
+import pandas as pd
+
+from core.config import MAX_ROWS
 
 from utils.file_utils import (
     safe_json_replace
@@ -21,8 +19,57 @@ from utils.dataframe_utils import (
 )
 
 from utils.log_utils import log_calls
+from services.versioning_engine import save_stage_dataset
+from utils.dataset_storage import resolve_dataset_name
+from utils.file_utils import load_dataframe_from_path
 
 router = APIRouter()
+
+
+@router.post("/api/datasets/full-preview")
+@log_calls
+async def full_dataset_preview(payload: dict):
+
+    try:
+
+        file_path = payload.get("file_path")
+
+        if not file_path:
+            raise HTTPException(
+                status_code=400,
+                detail="file_path is required."
+            )
+
+        path = Path(file_path)
+        df = load_dataframe_from_path(path)
+
+        return {
+
+            "status": "success",
+
+            "metadata": {
+
+                "file_path": str(path),
+
+                "rows": len(df),
+
+                "columns": len(df.columns),
+
+            },
+
+            "columns": list(df.columns),
+
+            "rows": safe_json_replace(df),
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc)
+        )
 
 
 @router.post("/api/upload")
@@ -40,33 +87,32 @@ async def upload_dataset(
             detail="Unsupported file format."
         )
 
-    file_path = DATASETS_DIR / file.filename
-
-    with open(file_path, "wb") as buffer:
-
-        shutil.copyfileobj(
-            file.file,
-            buffer
-        )
-
     try:
+
+        file_bytes = await file.read()
+        buffer = BytesIO(file_bytes)
 
         if file.filename.endswith(".csv"):
 
-            df = pd.read_csv(file_path)
+            df = pd.read_csv(buffer)
 
         else:
 
-            df = pd.read_excel(file_path)
+            df = pd.read_excel(buffer)
 
         if len(df) > MAX_ROWS:
-
-            os.remove(file_path)
 
             raise HTTPException(
                 status_code=400,
                 detail="Dataset exceeds limit."
             )
+
+        saved_path = save_stage_dataset(
+            dataset_source=df,
+            dataset_name=file.filename,
+            stage_name="raw",
+            file_extension=Path(file.filename).suffix,
+        )
 
         return {
 
@@ -76,7 +122,9 @@ async def upload_dataset(
 
                 "filename": file.filename,
 
-                "file_path": str(file_path),
+                "dataset_name": resolve_dataset_name(saved_path),
+
+                "file_path": str(saved_path),
 
                 "rows": len(df),
 
@@ -96,12 +144,10 @@ async def upload_dataset(
             )
         }
 
+    except HTTPException:
+        raise
+
     except Exception as e:
-
-        if file_path.exists():
-
-            os.remove(file_path)
-
         raise HTTPException(
             status_code=500,
             detail=str(e)

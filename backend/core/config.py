@@ -3,10 +3,10 @@ from pathlib import Path
 # Project root (two levels above this file: backend/core -> backend -> project root)
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-# Ensure commonly-used folders point to the workspace root
-DATASETS_DIR = BASE_DIR / "datasets"
-LOGS_DIR = BASE_DIR / "logs"
-AI_CACHE_DIR = BASE_DIR / "ai_cache"
+# Backend-owned folders
+DATASETS_DIR = BASE_DIR / "backend" / "datasets"
+LOGS_DIR = BASE_DIR / "backend" / "logs"
+AI_CACHE_DIR = DATASETS_DIR
 
 # Create directories if they don't exist to avoid FileNotFoundErrors
 for _dir in (DATASETS_DIR, LOGS_DIR, AI_CACHE_DIR):

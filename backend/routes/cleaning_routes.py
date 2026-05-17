@@ -19,6 +19,8 @@ from utils.log_utils import (
 )
 
 from utils.log_utils import log_calls
+from services.versioning_engine import save_stage_dataset, read_dataset_file
+from utils.dataset_storage import resolve_dataset_name
 
 router = APIRouter()
 
@@ -38,13 +40,7 @@ async def clean_missing_values(
         {}
     )
 
-    if str(path).endswith(".csv"):
-
-        df = pd.read_csv(path)
-
-    else:
-
-        df = pd.read_excel(path)
+    df = read_dataset_file(path)
 
     before_count = (
         df.isnull()
@@ -94,19 +90,12 @@ async def clean_missing_values(
                 )
             )
 
-    if str(path).endswith(".csv"):
-
-        df.to_csv(
-            path,
-            index=False
-        )
-
-    else:
-
-        df.to_excel(
-            path,
-            index=False
-        )
+    saved_path = save_stage_dataset(
+        dataset_source=df,
+        dataset_name=resolve_dataset_name(path),
+        stage_name="clean",
+        file_extension=path.suffix,
+    )
 
     rows_affected = int(
 
@@ -121,7 +110,7 @@ async def clean_missing_values(
 
     save_cleaning_log(
 
-        dataset_name=path.name,
+        dataset_name=resolve_dataset_name(path),
 
         operation="Missing Value Cleaning",
 
@@ -135,6 +124,8 @@ async def clean_missing_values(
     return {
 
         "status": "success",
+
+        "file_path": str(saved_path),
 
         "rows_affected": rows_affected,
 

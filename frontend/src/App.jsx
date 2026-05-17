@@ -1,12 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   LayoutDashboard, Droplets, AlertTriangle, Copy, Settings,
   History, LogOut, ChevronRight, ShieldCheck, Scale,
   BarChart3, Sparkles, Menu, X, Database, Activity, FileSpreadsheet
 } from 'lucide-react';
 
-import FileUpload from './components/FileUpload';
-import DatasetPreview from './components/DatasetPreview';
 import MissingValuePanel from './components/MissingValuePanel';
 import OutlierPanel from './components/OutlierPanel';
 import DuplicatePanel from './components/DuplicatePanel';
@@ -15,6 +13,21 @@ import CleaningLogsPanel from './components/CleaningLogsPanel';
 import WeightEstimationPanel from './components/WeightEstimationPanel';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import AIEngine from './components/AIEngine';
+import VersioningPanel from './components/VersioningPanel';
+import { BrowserRouter as Router, Routes, Route, NavLink, Navigate } from 'react-router-dom';
+
+import Mainpage from './pages/Mainpage';
+import IngestionPage from './pages/IngestionPage';
+import DatasetExplorer from './pages/DatasetExplorer';
+import NullAnalysis from './pages/NullAnalysis';
+import WholeDatasetPage from './pages/WholeDatasetPage';
+import AnomalyDetection from './pages/AnomalyDetection';
+import Deduping from './pages/Deduping';
+import LogicValidation from './pages/LogicValidation';
+import WeightingEngine from './pages/WeightingEngine';
+import StatisticalEngine from './pages/StatisticalEngine';
+import VersionControl from './pages/VersionControl';
+import AuditTrail from './pages/AuditTrail';
 
 import './App.css';
 
@@ -22,6 +35,7 @@ function App() {
   const [datasetData, setDatasetData] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [analyticsViewData, setAnalyticsViewData] = useState(null);
 
   const [validationResult, setValidationResult] = useState(null);
   const [estimationResult, setEstimationResult] = useState(null);
@@ -29,20 +43,113 @@ function App() {
   const [duplicateResult, setDuplicateResult] = useState(null);
 
   const [aiResults, setAIResults] = useState(null);
+  const [aiResultsSourcePath, setAIResultsSourcePath] = useState(null);
   const [aiLoading, setAILoading] = useState(false);
 
+  const storageKey = 'daet_frontend_state_v1';
+
+  useEffect(() => {
+    try {
+      const rawState = window.localStorage.getItem(storageKey);
+
+      if (!rawState) return;
+
+      const savedState = JSON.parse(rawState);
+
+      if (savedState.datasetData) setDatasetData(savedState.datasetData);
+      if (savedState.activeTab) setActiveTab(savedState.activeTab);
+      if (savedState.analyticsViewData) setAnalyticsViewData(savedState.analyticsViewData);
+      if (savedState.aiResults) setAIResults(savedState.aiResults);
+      if (savedState.aiResultsSourcePath) {
+        setAIResultsSourcePath(savedState.aiResultsSourcePath);
+      }
+    } catch (error) {
+      console.warn('Failed to restore DAET session:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      if (!datasetData && !aiResults) {
+        window.localStorage.removeItem(storageKey);
+        return;
+      }
+
+      window.localStorage.setItem(
+        storageKey,
+        JSON.stringify({
+          datasetData,
+          activeTab,
+          analyticsViewData,
+          aiResults,
+          aiResultsSourcePath,
+        })
+      );
+    } catch (error) {
+      console.warn('Failed to persist DAET session:', error);
+    }
+  }, [datasetData, activeTab, analyticsViewData, aiResults, aiResultsSourcePath]);
+
   const navItems = [
-    { id: 'overview', label: 'Dataset Explorer', icon: Database },
-    { id: 'missing', label: 'Null Analysis', icon: Droplets },
-    { id: 'outliers', label: 'Anomaly Detection', icon: AlertTriangle },
-    { id: 'duplicates', label: 'Deduping', icon: Copy },
-    { id: 'validation', label: 'Logic Validation', icon: ShieldCheck },
-    { id: 'estimation', label: 'Weighting Engine', icon: Scale },
-    { id: 'analytics', label: 'Statistical Insights', icon: BarChart3 },
-    { id: 'logs', label: 'Audit Trail', icon: History }
+    { id: 'overview', label: 'Dataset Explorer', icon: Database, path: '/dataset-explorer' },
+    { id: 'whole_dataset', label: 'Whole Dataset', icon: FileSpreadsheet, path: '/whole-dataset' },
+    { id: 'missing', label: 'Null Analysis', icon: Droplets, path: '/null-analysis' },
+    { id: 'outliers', label: 'Anomaly Detection', icon: AlertTriangle, path: '/anomaly-detection' },
+    { id: 'duplicates', label: 'Deduping', icon: Copy, path: '/deduping' },
+    { id: 'validation', label: 'Logic Validation', icon: ShieldCheck, path: '/logic-validation' },
+    { id: 'estimation', label: 'Weighting Engine', icon: Scale, path: '/weighting-engine' },
+    { id: 'analytics', label: 'Statistical Insights', icon: BarChart3, path: '/statistical-engine' },
+    { id: 'versioning', label: 'Version Control', icon: FileSpreadsheet, path: '/version-control' },
+    { id: 'logs', label: 'Audit Trail', icon: History, path: '/audit-trail' }
   ];
 
+  const aiRecommendations = aiResults?.recommendations || [];
+  const missingValueInsights = aiRecommendations.map((item) => {
+    const recommendation = item.recommendations || {};
+    const reasonParts = [];
+
+    if (item.statistics?.missing_percent !== undefined) {
+      reasonParts.push(`Missing ${item.statistics.missing_percent}%`);
+    }
+
+    if (Array.isArray(recommendation.reason_codes) && recommendation.reason_codes.length > 0) {
+      reasonParts.push(recommendation.reason_codes.join(', '));
+    }
+
+    return {
+      column: item.column,
+      recommended_method: recommendation.missing_value_method || 'review',
+      reason: reasonParts.join(' • ') || 'Backend AI recommendation available',
+      warning: recommendation.warnings?.[0] || null,
+    };
+  });
+
+  const outlierInsights = aiRecommendations.map((item) => {
+    const recommendation = item.recommendations || {};
+
+    return {
+      column: item.column,
+      recommended_method: recommendation.outlier_method || 'iqr',
+      reason: recommendation.warnings?.[0] || recommendation.reason_codes?.[0] || 'Backend AI recommendation available',
+      warning: recommendation.warnings?.[0] || null,
+    };
+  });
+
+  const validationInsights = aiRecommendations.map((item) => {
+    const recommendation = item.recommendations || {};
+
+    return {
+      column: item.column,
+      operator: '==',
+      value: recommendation.missing_value_method || recommendation.outlier_method || 'review',
+      severity: recommendation.validation_priority || 'low',
+    };
+  });
+
   const handleTabChange = (id) => {
+    if (id !== 'analytics') {
+      setAnalyticsViewData(null);
+    }
     setActiveTab(id);
     setIsMobileMenuOpen(false);
   };
@@ -55,23 +162,32 @@ function App() {
     setOutlierResult(null);
     setDuplicateResult(null);
     setAIResults(null);
+    setAIResultsSourcePath(null);
+    setAnalyticsViewData(null);
     setIsMobileMenuOpen(false);
+    window.localStorage.removeItem(storageKey);
   };
 
+  const activeAnalyticsData = analyticsViewData || datasetData;
+
   return (
-    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#020617] text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-indigo-100 dark:selection:bg-indigo-900/30">
+    <Router>
+      <div className="min-h-screen overflow-x-hidden bg-[#f8fafc] dark:bg-[#020617] text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-indigo-100 dark:selection:bg-indigo-900/30">
 
       {datasetData && (
         <AIEngine
           datasetData={datasetData}
           setAIResults={setAIResults}
+          aiResultsSourcePath={aiResultsSourcePath}
+          setAIResultsSourcePath={setAIResultsSourcePath}
           setAILoading={setAILoading}
         />
       )}
 
       {/* HEADER: Refined with tighter padding and sharper borders */}
-      <header className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 sticky top-0 z-[60] w-full shadow-sm">
-        <div className="max-w-[1800px] mx-auto px-4 py-2.5 flex items-center justify-between">
+      {datasetData && (
+        <header className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 sticky top-0 z-[60] w-full shadow-sm">
+          <div className="max-w-[1800px] mx-auto px-4 py-2.5 flex items-center justify-between">
 
           <div className="flex items-center gap-4">
             {datasetData && (
@@ -109,61 +225,65 @@ function App() {
 
             <div className="h-6 w-px bg-slate-200 dark:border-slate-800 mx-1" />
 
-            <button className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 transition-all">
-              <Settings size={18} />
+            <button
+              onClick={handleReset}
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:hover:bg-slate-900"
+            >
+              <LogOut size={16} />
+              Terminate
             </button>
           </div>
-        </div>
-      </header>
+          </div>
+        </header>
+      )}
 
-      <main className="flex-grow flex flex-col w-full max-w-[1800px] mx-auto overflow-hidden">
+      <main className="flex-1 min-h-0 flex flex-col w-full max-w-[1800px] mx-auto overflow-visible">
 
         {!datasetData ? (
-          <div className="flex-grow flex flex-col items-center justify-center px-6 py-12">
-            <div className="text-center max-w-2xl mb-12">
-              <div className="flex justify-center mb-6">
-                <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800">
-                  <FileSpreadsheet size={48} className="text-indigo-600" />
-                </div>
-              </div>
-              <h2 className="text-4xl font-semibold tracking-tight text-slate-900 dark:text-white mb-4">
-                Statistically Sound <span className="text-indigo-600 font-light italic">Data Refinement</span>
-              </h2>
-              <p className="text-slate-500 dark:text-slate-400 leading-relaxed font-light">
-                Professional toolkit for data validation, weight estimation, and anomaly detection.
-                Optimized for high-fidelity survey analysis and enterprise reporting.
-              </p>
-            </div>
-
-            <div className="w-full max-w-3xl border border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-2 bg-white/50 dark:bg-slate-900/50">
-              <FileUpload
-                onUploadSuccess={(data) => {
-                  setDatasetData(data);
-                  setActiveTab('overview'); // Force view to explorer immediately
-                }}
-              />
-            </div>
-          </div>
+          <Routes>
+            <Route path="/" element={<Mainpage />} />
+            <Route
+              path="/ingestion"
+              element={
+                <IngestionPage
+                  onUploadSuccess={(data) => {
+                    setDatasetData(data);
+                    setAnalyticsViewData(null);
+                    setActiveTab('overview');
+                    try {
+                      window.history.pushState({}, '', '/dataset-explorer');
+                    } catch (e) {
+                      window.location.hash = '/dataset-explorer';
+                    }
+                    setAIResults(null);
+                    setAIResultsSourcePath(null);
+                  }}
+                />
+              }
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         ) : (
-          <div className="flex flex-col lg:flex-row flex-grow overflow-hidden h-[calc(100vh-57px)]">
+          <div className="flex flex-col lg:flex-row flex-1 min-h-0 overflow-hidden">
 
             {/* DESKTOP SIDEBAR: Industrial look */}
-            <aside className="hidden lg:flex w-64 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4 flex flex-col gap-6 shrink-0">
+            <aside className="hidden lg:flex w-64 h-full border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4 flex flex-col gap-6 shrink-0 overflow-y-auto">
               <div>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 px-2">Analysis Pipeline</p>
                 <nav className="flex flex-col gap-0.5">
                   {navItems.map((item) => (
-                    <button
+                    <NavLink
                       key={item.id}
+                      to={item.path}
                       onClick={() => handleTabChange(item.id)}
-                      className={`flex items-center gap-3 px-3 py-2 rounded transition-all text-sm font-medium border-l-2 ${activeTab === item.id
-                          ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 border-indigo-600'
-                          : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-900 border-transparent'
-                        }`}
+                      className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded transition-all text-sm font-medium border-l-2 ${isActive
+                        ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 border-indigo-600'
+                        : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-900 border-transparent'
+                      }`}
                     >
-                      <item.icon size={16} strokeWidth={activeTab === item.id ? 2.5 : 2} />
+                      <item.icon size={16} strokeWidth={2} />
                       {item.label}
-                    </button>
+                    </NavLink>
                   ))}
                 </nav>
               </div>
@@ -175,18 +295,12 @@ function App() {
                     <p className="text-[10px] font-mono font-bold text-slate-400 uppercase">System Status</p>
                   </div>
                   <p className="text-[11px] font-medium text-slate-700 dark:text-slate-300 truncate font-mono">{datasetData.metadata.filename}</p>
-                  <button
-                    onClick={handleReset}
-                    className="mt-3 w-full flex items-center justify-center gap-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded transition-all"
-                  >
-                    <LogOut size={12} /> Terminate Session
-                  </button>
                 </div>
               </div>
             </aside>
 
             {/* MAIN WORKSPACE */}
-            <section className="flex-grow overflow-y-auto bg-white dark:bg-[#020617] custom-scrollbar">
+            <section className="flex-1 min-h-0 overflow-y-auto bg-white dark:bg-[#020617] custom-scrollbar">
               <div className="p-6 lg:p-8 max-w-[1400px]">
 
                 <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4 border-b border-slate-100 dark:border-slate-800 pb-6">
@@ -207,71 +321,95 @@ function App() {
                   <div className="flex gap-4">
                     <div className="px-3 py-1 border-r border-slate-200 dark:border-slate-800 text-right">
                       <p className="text-[10px] text-slate-400 uppercase font-bold">Samples</p>
-                      <p className="text-sm font-mono font-bold">{datasetData.metadata.rows?.toLocaleString() || '0'}</p>
+                      <p className="text-sm font-mono font-bold">{(activeTab === 'analytics' ? activeAnalyticsData : datasetData)?.metadata?.rows?.toLocaleString() || '0'}</p>
                     </div>
                     <div className="px-3 py-1 text-right">
                       <p className="text-[10px] text-slate-400 uppercase font-bold">Variables</p>
-                      <p className="text-sm font-mono font-bold">{Object.keys(datasetData.preview[0] || {}).length}</p>
+                      <p className="text-sm font-mono font-bold">{Object.keys((activeTab === 'analytics' ? activeAnalyticsData : datasetData)?.preview?.[0] || {}).length}</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                  {activeTab === 'overview' && <DatasetPreview data={datasetData} aiResults={aiResults} />}
+                  <Routes>
+                    <Route path="/ingestion" element={<Navigate to="/dataset-explorer" replace />} />
+                    <Route path="/" element={<DatasetExplorer datasetData={datasetData} aiResults={aiResults} />} />
+                    <Route path="/dataset-explorer" element={<DatasetExplorer datasetData={datasetData} aiResults={aiResults} />} />
+                    <Route path="/whole-dataset" element={<WholeDatasetPage datasetData={datasetData} onBack={() => {
+                      handleTabChange('overview');
+                      window.history.pushState({}, '', '/dataset-explorer');
+                    }} />} />
 
-                  {activeTab === 'missing' && (
-                    <MissingValuePanel
-                      data={datasetData}
-                      aiInsights={aiResults?.missing_value_insights || []}
-                      onCleaningComplete={(result) => {
+                    <Route path="/null-analysis" element={<NullAnalysis data={datasetData} aiInsights={missingValueInsights} onCleaningComplete={(result) => {
+                      setAIResults(null);
+                      setAIResultsSourcePath(null);
+                      setAnalyticsViewData(null);
+                      setDatasetData(prev => ({
+                        ...prev,
+                        preview: result.preview,
+                        metadata: {
+                          ...prev.metadata,
+                          file_path: result.file_path,
+                          dataset_name: prev.metadata.dataset_name || prev.metadata.filename,
+                          null_counts: result.null_counts
+                        }
+                      }));
+                    }} />} />
+
+                    <Route path="/anomaly-detection" element={<AnomalyDetection data={datasetData} aiInsights={outlierInsights} onResult={(res) => {
+                      setOutlierResult(res);
+                      if (res?.file_path) {
+                        setAnalyticsViewData(null);
                         setDatasetData(prev => ({
                           ...prev,
-                          preview: result.preview,
-                          metadata: { ...prev.metadata, null_counts: result.null_counts }
+                          preview: res.preview || prev.preview,
+                          metadata: { ...prev.metadata, file_path: res.file_path }
                         }));
-                      }}
-                    />
-                  )}
+                      }
+                    }} />} />
 
-                  {activeTab === 'outliers' && (
-                    <OutlierPanel data={datasetData} aiInsights={aiResults?.outlier_insights || []} onResult={(res) => setOutlierResult(res)} />
-                  )}
+                    <Route path="/deduping" element={<Deduping data={datasetData} aiInsights={aiResults?.duplicate_insights || []} onProcessComplete={(result) => {
+                      setDuplicateResult(result);
+                      setAIResults(null);
+                      setAIResultsSourcePath(null);
+                      setAnalyticsViewData(null);
+                      setDatasetData(prev => ({
+                        ...prev,
+                        preview: result.preview,
+                        metadata: {
+                          ...prev.metadata,
+                          file_path: result.file_path,
+                          rows: result.final_rows
+                        }
+                      }));
+                    }} />} />
 
-                  {activeTab === 'duplicates' && (
-                    <DuplicatePanel
-                      data={datasetData}
-                      aiInsights={aiResults?.duplicate_insights || []}
-                      onProcessComplete={(result) => {
-                        setDuplicateResult(result);
+                    <Route path="/logic-validation" element={<LogicValidation data={datasetData} aiInsights={validationInsights} onValidationComplete={(res) => {
+                      setValidationResult(res);
+                      if (res?.file_path) {
+                        setAIResults(null);
+                        setAIResultsSourcePath(null);
+                        setAnalyticsViewData(null);
                         setDatasetData(prev => ({
                           ...prev,
-                          preview: result.preview,
-                          metadata: { ...prev.metadata, rows: result.final_rows }
+                          preview: res.preview || prev.preview,
+                          metadata: { ...prev.metadata, file_path: res.file_path }
                         }));
-                      }}
-                    />
-                  )}
+                      }
+                    }} />} />
 
-                  {activeTab === 'validation' && (
-                    <RuleValidationPanel data={datasetData} aiInsights={aiResults?.validation_insights || []} onValidationComplete={(res) => setValidationResult(res)} />
-                  )}
+                    <Route path="/weighting-engine" element={<WeightingEngine data={datasetData} aiInsights={aiResults?.weight_estimation_insights || []} onEstimationComplete={(res) => setEstimationResult(res)} />} />
 
-                  {activeTab === 'estimation' && (
-                    <WeightEstimationPanel data={datasetData} aiInsights={aiResults?.weight_estimation_insights || []} onEstimationComplete={(res) => setEstimationResult(res)} />
-                  )}
+                    <Route path="/statistical-engine" element={<StatisticalEngine datasetData={activeAnalyticsData} validationResult={validationResult} estimationResult={estimationResult} outlierResult={outlierResult} duplicateResult={duplicateResult} aiResults={aiResults} />} />
 
-                  {activeTab === 'analytics' && (
-                    <AnalyticsDashboard
-                      datasetData={datasetData}
-                      validationResult={validationResult}
-                      estimationResult={estimationResult}
-                      outlierResult={outlierResult}
-                      duplicateResult={duplicateResult}
-                      aiResults={aiResults}
-                    />
-                  )}
+                    <Route path="/version-control" element={<VersionControl data={datasetData} onViewAnalytics={(analyticsDataset) => {
+                      setAnalyticsViewData(analyticsDataset);
+                      setActiveTab('analytics');
+                      setIsMobileMenuOpen(false);
+                    }} />} />
 
-                  {activeTab === 'logs' && <CleaningLogsPanel data={datasetData} />}
+                    <Route path="/audit-trail" element={<AuditTrail data={datasetData} />} />
+                  </Routes>
                 </div>
               </div>
             </section>
@@ -292,21 +430,22 @@ function App() {
             </div>
             <nav className="flex flex-col gap-2">
               {navItems.map((item) => (
-                <button
+                <NavLink
                   key={item.id}
-                  onClick={() => handleTabChange(item.id)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded text-sm font-medium ${activeTab === item.id ? 'bg-indigo-600 text-white' : 'text-slate-500'
-                    }`}
+                  to={item.path}
+                  onClick={() => { handleTabChange(item.id); setIsMobileMenuOpen(false); }}
+                  className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded text-sm font-medium ${isActive ? 'bg-indigo-600 text-white' : 'text-slate-500'}`}
                 >
                   <item.icon size={18} />
                   {item.label}
-                </button>
+                </NavLink>
               ))}
             </nav>
           </aside>
         </div>
       )}
-    </div>
+      </div>
+    </Router>
   );
 }
 
