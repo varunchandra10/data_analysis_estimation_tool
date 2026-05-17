@@ -2,9 +2,12 @@ import json
 
 from pathlib import Path
 from datetime import datetime
+import inspect
 import logging
 import functools
 import time
+
+from utils.dataset_storage import SERVER_LOGS_ROOT, audit_log_path, ensure_dataset_layout, resolve_dataset_name
 
 # ==========================================
 # DIRECTORIES
@@ -12,7 +15,7 @@ import time
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-LOGS_DIR = BASE_DIR / "logs"
+LOGS_DIR = SERVER_LOGS_ROOT
 
 LOGS_DIR.mkdir(
     parents=True,
@@ -49,10 +52,35 @@ def log_to_file(message: str):
 def log_calls(fn):
     """Decorator to log function entry, exit, duration and exceptions."""
 
+    name = f"{fn.__module__}.{fn.__name__}"
+
+    if inspect.iscoroutinefunction(fn):
+
+        @functools.wraps(fn)
+        async def async_wrapper(*args, **kwargs):
+
+            try:
+                logger.info(f"ENTER {name} args={args if len(args)<=5 else '(... )'} kwargs={list(kwargs.keys())}")
+                log_to_file(f"ENTER {name}")
+                start = time.time()
+
+                result = await fn(*args, **kwargs)
+
+                duration = (time.time() - start) * 1000
+                logger.info(f"EXIT {name} duration={duration:.2f}ms")
+                log_to_file(f"EXIT {name} duration={duration:.2f}ms")
+
+                return result
+
+            except Exception as e:
+                logger.exception(f"EXCEPTION in {name}: {e}")
+                log_to_file(f"EXCEPTION in {name}: {e}")
+                raise
+
+        return async_wrapper
+
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
-
-        name = f"{fn.__module__}.{fn.__name__}"
 
         try:
             logger.info(f"ENTER {name} args={args if len(args)<=5 else '(... )'} kwargs={list(kwargs.keys())}")
@@ -82,10 +110,9 @@ def save_cleaning_log(
     details=None
 ):
 
-    log_file = (
-        LOGS_DIR
-        / f"{Path(dataset_name).stem}_logs.json"
-    )
+    resolved_dataset_name = resolve_dataset_name(dataset_name)
+    ensure_dataset_layout(resolved_dataset_name)
+    log_file = audit_log_path(resolved_dataset_name)
 
     log_entry = {
 
@@ -113,7 +140,7 @@ def save_cleaning_log(
 
         try:
 
-            with open(log_file, "r") as f:
+            with open(log_file, "r", encoding="utf-8") as f:
 
                 logs = json.load(f)
 
@@ -131,7 +158,7 @@ def save_cleaning_log(
     # SAVE
     # ==========================================
 
-    with open(log_file, "w") as f:
+    with open(log_file, "w", encoding="utf-8") as f:
 
         json.dump(
             logs,

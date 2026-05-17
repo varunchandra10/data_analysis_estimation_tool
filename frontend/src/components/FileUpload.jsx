@@ -51,18 +51,6 @@ const FileUpload = ({ onUploadSuccess }) => {
       });
       uploadedData.statistics = statsResponse.data.stats;
 
-      setStage("Generating AI recommendations");
-      try {
-        const aiResponse = await axios.post('http://localhost:8000/api/ai/recommendations', {
-          file_path: uploadedData.metadata.file_path,
-          schema: uploadedData.schema
-        });
-        uploadedData.ai = aiResponse.data;
-      } catch (aiError) {
-        console.warn("AI generation failed:", aiError);
-        uploadedData.ai = { recommendations: [] };
-      }
-
       onUploadSuccess(uploadedData);
     } catch (err) {
       setError(err.response?.data?.detail || 'System error: Failed to parse dataset.');

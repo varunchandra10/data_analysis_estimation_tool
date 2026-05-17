@@ -4,7 +4,10 @@ import axios from "axios";
 
 const AIEngine = ({
   datasetData,
-  setAIResults
+  setAIResults,
+  aiResultsSourcePath,
+  setAIResultsSourcePath,
+  setAILoading
 }) => {
 
   const [loading, setLoading] = useState(false);
@@ -13,9 +16,16 @@ const AIEngine = ({
 
     if (!datasetData) return;
 
+    if (
+      aiResultsSourcePath &&
+      aiResultsSourcePath === datasetData.metadata.file_path
+    ) {
+      return;
+    }
+
     generateInsights();
 
-  }, [datasetData]);
+  }, [datasetData, aiResultsSourcePath]);
 
   // =====================================================
   // GENERATE AI INSIGHTS
@@ -24,6 +34,7 @@ const AIEngine = ({
   const generateInsights = async () => {
 
     setLoading(true);
+    if (setAILoading) setAILoading(true);
 
     try {
 
@@ -47,6 +58,9 @@ const AIEngine = ({
       );
 
       setAIResults(response.data);
+      if (setAIResultsSourcePath) {
+        setAIResultsSourcePath(datasetData.metadata.file_path);
+      }
 
     } catch (err) {
 
@@ -58,6 +72,7 @@ const AIEngine = ({
     } finally {
 
       setLoading(false);
+      if (setAILoading) setAILoading(false);
 
     }
 

@@ -231,14 +231,14 @@ const RuleValidationPanel = ({ data, aiInsights = [] }) => {
               {[
                 { label: 'Active Rules', val: result.total_rules, color: 'text-slate-900 dark:text-white', icon: ShieldCheck },
                 { label: 'Violations', val: result.total_violations, color: 'text-rose-600', icon: AlertCircle },
-                { label: 'P1 Critical', val: result.severity_counts.high, color: 'text-rose-600', icon: Info },
-                { label: 'P2 Moderate', val: result.severity_counts.medium, color: 'text-amber-600', icon: Info },
+                { label: 'P1 Critical', val: result.severity_counts?.high ?? 0, color: 'text-rose-600', icon: Info },
+                { label: 'P2 Moderate', val: result.severity_counts?.medium ?? 0, color: 'text-amber-600', icon: Info },
               ].map((card, i) => (
                 <div key={i} className="bg-white dark:bg-slate-900 p-6">
                   <div className="flex items-center gap-2 mb-2 text-slate-400 uppercase text-[9px] font-black tracking-widest">
                     <card.icon size={10} /> {card.label}
                   </div>
-                  <h3 className={`text-2xl font-mono font-bold ${card.color}`}>{card.val.toLocaleString()}</h3>
+                  <h3 className={`text-2xl font-mono font-bold ${card.color}`}>{(card.val ?? 0).toLocaleString()}</h3>
                 </div>
               ))}
             </div>

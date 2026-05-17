@@ -35,6 +35,7 @@ const OutlierPanel = ({ data, aiInsights = [] }) => {
   const [method, setMethod] = useState("iqr");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [applyLoading, setApplyLoading] = useState(false);
 
   const handleDetect = async () => {
     if (!selectedColumn) return;
@@ -56,6 +57,26 @@ const OutlierPanel = ({ data, aiInsights = [] }) => {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleApply = async () => {
+    if (!result) return;
+    setApplyLoading(true);
+    try {
+      const response = await axios.post("http://localhost:8000/api/outliers/apply", {
+        file_path: metadata.file_path,
+        column: selectedColumn,
+        method: method,
+      });
+
+      // update result to reflect applied dataset path and preview
+      setResult((r) => ({ ...r, applied: true, file_path: response.data.file_path, preview: response.data.preview, applied_preview: undefined }));
+
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setApplyLoading(false);
     }
   };
 
@@ -248,6 +269,120 @@ const OutlierPanel = ({ data, aiInsights = [] }) => {
                 </div>
               ))}
             </div>
+
+            {result.applied_preview && (
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+                  <div className="px-6 py-4 border-b bg-slate-50/50 dark:bg-slate-950/40 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <TableIcon size={16} className="text-slate-500" />
+                      <h5 className="text-[11px] font-black uppercase tracking-widest">Current Dataset Head</h5>
+                    </div>
+                    <span className="text-[10px] font-mono text-slate-400">Original</span>
+                  </div>
+                  <div className="overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-[11px] border-collapse leading-none">
+                      <thead>
+                        <tr className="bg-slate-50 dark:bg-slate-950 text-slate-500 uppercase text-[9px] font-black tracking-widest border-b border-slate-200 dark:border-slate-800">
+                          {result.preview?.[0] && Object.keys(result.preview[0]).map((key, idx) => (
+                            <th key={idx} className="px-4 py-3 text-left">{key}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="font-mono tabular-nums divide-y divide-slate-100 dark:divide-slate-800">
+                        {result.preview?.map((row, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50/40 dark:hover:bg-slate-900/10 transition-colors">
+                            {Object.values(row).map((value, i) => (
+                              <td key={i} className="px-4 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">{String(value)}</td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+                  <div className="px-6 py-4 border-b bg-slate-50/50 dark:bg-slate-950/40 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <TableIcon size={16} className="text-indigo-500" />
+                      <h5 className="text-[11px] font-black uppercase tracking-widest">Preview: After Apply</h5>
+                    </div>
+                    <span className="text-[10px] font-mono text-slate-400">Temporary</span>
+                  </div>
+                  <div className="overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-[11px] border-collapse leading-none">
+                      <thead>
+                        <tr className="bg-slate-50 dark:bg-slate-950 text-slate-500 uppercase text-[9px] font-black tracking-widest border-b border-slate-200 dark:border-slate-800">
+                          {result.applied_preview?.[0] && Object.keys(result.applied_preview[0]).map((key, idx) => (
+                            <th key={idx} className="px-4 py-3 text-left">{key}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="font-mono tabular-nums divide-y divide-slate-100 dark:divide-slate-800">
+                        {result.applied_preview?.map((row, idx) => (
+                          <tr key={idx} className="hover:bg-indigo-50/40 dark:hover:bg-indigo-900/10 transition-colors">
+                            {Object.values(row).map((value, i) => (
+                              <td key={i} className="px-4 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">{String(value)}</td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={handleApply}
+                disabled={applyLoading || result.total_outliers === 0}
+                className="flex items-center gap-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-200 dark:disabled:bg-slate-800 text-white rounded-xl px-6 py-3 font-black uppercase text-xs tracking-[0.2em] shadow-2xl"
+              >
+                {applyLoading ? (
+                  <Loader2 className="animate-spin" size={16} />
+                ) : (
+                  <Database size={16} />
+                )}
+                {applyLoading ? "APPLYING CHANGES..." : "APPLY OUTLIER DETECTION"}
+              </button>
+            </div>
+            {result.applied && result.preview && (
+              <div className="mt-8 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+                <div className="px-6 py-4 border-b bg-slate-50/50 dark:bg-slate-950/40 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <TableIcon size={18} className="text-indigo-500" />
+                    <h4 className="text-xs font-black uppercase tracking-widest">Preview: Applied Dataset Head</h4>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold text-slate-400 uppercase">STAGED: {result.file_path?.split('/').pop() || ''}</span>
+                </div>
+                <div className="overflow-x-auto custom-scrollbar">
+                  <table className="w-full text-[11px] border-collapse leading-none">
+                    <thead>
+                      <tr className="bg-slate-50 dark:bg-slate-950 text-slate-500 uppercase text-[9px] font-black tracking-widest border-b border-slate-200 dark:border-slate-800">
+                        {result.preview?.[0] && Object.keys(result.preview[0]).map((key, idx) => (
+                          <th key={idx} className="px-6 py-4 border-r border-slate-100 dark:border-slate-800 last:border-0 text-left">{key}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="font-mono tabular-nums divide-y divide-slate-100 dark:divide-slate-800">
+                      {result.preview?.map((row, idx) => (
+                        <tr key={idx} className="hover:bg-indigo-50/40 dark:hover:bg-indigo-900/10 transition-colors">
+                          {Object.values(row).map((value, i) => (
+                            <td key={i} className="px-6 py-4 text-slate-600 dark:text-slate-300 border-r border-slate-100 dark:border-slate-800 last:border-0 whitespace-nowrap">
+                              {typeof value === 'number' ? (
+                                <span className="font-bold text-indigo-600">{value.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                              ) : String(value)}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {/* PRIMARY CHARTS */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">

@@ -4,9 +4,7 @@ import json
 
 from pathlib import Path
 
-from core.config import (
-    LOGS_DIR
-)
+from utils.dataset_storage import audit_log_path, ensure_dataset_layout, resolve_dataset_name
 
 router = APIRouter()
 
@@ -16,12 +14,9 @@ async def get_logs(
     dataset_name: str
 ):
 
-    log_file = (
-
-        LOGS_DIR /
-
-        f"{Path(dataset_name).stem}_logs.json"
-    )
+    resolved_dataset_name = resolve_dataset_name(Path(dataset_name).stem)
+    ensure_dataset_layout(resolved_dataset_name)
+    log_file = audit_log_path(resolved_dataset_name)
 
     if not log_file.exists():
 
@@ -29,7 +24,7 @@ async def get_logs(
             "logs": []
         }
 
-    with open(log_file, "r") as f:
+    with open(log_file, "r", encoding="utf-8") as f:
 
         logs = json.load(f)
 
