@@ -11,14 +11,22 @@ import {
   Binary,
   ArrowUpRight,
   Fingerprint,
-  RefreshCcw
+  RefreshCcw,
+  Terminal,
+  Info,
+  Crosshair
 } from "lucide-react";
 
 import BarChartComponent from "./charts/BarChartComponent";
 import PieChartComponent from "./charts/PieChartComponent";
 import LineChartComponent from "./charts/LineChartComponent";
 import CorrelationHeatmap from "./charts/CorrelationHeatmap";
+import HistogramChart from "./charts/HistogramChart";
+import ScatterChartComponent from "./charts/ScatterChartComponent";
+import BoxPlotComponent from "./charts/BoxPlotComponent";
 import StatisticsPanel from "./StatisticsPanel";
+// import GraphEnclosure from "./GraphEnclosure";
+import GraphEnclosure from "./UI/graphModal";
 
 const AnalyticsDashboard = ({
   datasetData,
@@ -32,7 +40,7 @@ const AnalyticsDashboard = ({
 
   const { metadata, statistics } = datasetData;
 
-  // Logic remains identical as per your request
+  // Analytical metrics logic calculations remain identical
   const totalMissing = Object.values(metadata.null_counts).reduce((acc, val) => acc + val, 0);
   const completeness = (((metadata.rows * metadata.columns) - totalMissing) / (metadata.rows * metadata.columns)) * 100;
   const missingChartData = Object.entries(metadata.null_counts).map(([key, value]) => ({ column: key, missing: value }));
@@ -54,225 +62,286 @@ const AnalyticsDashboard = ({
   const correlationStats = statistics?.correlation || [];
 
   return (
-    <div className="space-y-8 mt-4 pb-12 antialiased text-slate-900 dark:text-slate-100 font-sans">
+    <div className="space-y-6 mt-4 pb-12 antialiased text-slate-200 font-sans max-w-[1600px] mx-auto px-4 sm:px-6 selection:bg-slate-800">
 
       {/* ================================================= */}
-      {/* DASHBOARD HEADER: Technical Lab Style */}
+      {/* 1. DASHBOARD HEADER */}
       {/* ================================================= */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-slate-200 dark:border-slate-800 pb-6 gap-4">
+      <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-slate-800 pb-6 gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-2">
-             <span className="flex h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></span>
-             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">System Ready: Batch Mode</span>
+          <div className="flex items-center gap-2 mb-1">
+             <span className="flex h-1.5 w-1.5 rounded-full bg-indigo-400 animate-pulse"></span>
+             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">System Ready: Batch Mode</span>
           </div>
-          <h2 className="text-3xl font-black tracking-tight flex items-center gap-3">
+          <h2 className="text-2xl font-bold tracking-tight text-slate-100 font-mono">
             Analytical Intelligence Terminal
           </h2>
           <div className="flex items-center gap-4 mt-2">
-            <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-               <Database size={14} />
-               <span className="font-mono">{metadata.filename || "Session_Data_01"}</span>
+            <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+               <Database size={13} />
+               <span className="font-mono text-slate-400">{metadata.filename || "Session_Data_01"}</span>
             </div>
-            <div className="h-4 w-px bg-slate-300 dark:bg-slate-700" />
-            <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-               <Fingerprint size={14} />
-               <span className="uppercase tracking-tighter">Vector ID: {metadata.rows}x{metadata.columns}</span>
+            <div className="h-3 w-px bg-slate-800" />
+            <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+               <Fingerprint size={13} />
+               <span className="uppercase tracking-wide text-slate-400 font-mono text-[11px]">Vector ID: {metadata.rows}x{metadata.columns}</span>
             </div>
           </div>
         </div>
         
-        <div className="flex items-center gap-3 bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-           <div className="px-4 py-1 border-r border-slate-100 dark:border-slate-800">
-             <p className="text-[9px] font-bold text-slate-400 uppercase leading-none mb-1 text-right">Processing</p>
-             <p className="text-xs font-mono font-bold text-emerald-500 text-right uppercase tracking-tighter">Real-time</p>
+        <div className="flex items-center gap-3 bg-[#0b1329] p-2 rounded-md border border-slate-900 shadow-sm">
+           <div className="px-3 py-0.5 border-r border-slate-800">
+             <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wide mb-0.5 text-right">Processing</p>
+             <p className="text-xs font-mono font-bold text-emerald-400 text-right uppercase tracking-tight">Real-time</p>
            </div>
-           <button className="flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg text-xs font-bold transition-all hover:bg-black dark:hover:bg-slate-200">
-            Full Report <ArrowUpRight size={14} />
+           <button className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 text-slate-200 hover:text-white rounded-md text-xs font-semibold transition-colors border border-slate-700/60 font-mono">
+            Full Report <ArrowUpRight size={13} />
           </button>
         </div>
       </div>
 
       {/* ================================================= */}
-      {/* KPI CARDS: Scientific Scorecard */}
+      {/* 2. KPI CARDS */}
       {/* ================================================= */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
         {[
-          { label: "Observations", value: metadata.rows.toLocaleString(), icon: Database, color: "text-slate-400" },
-          { label: "Completeness", value: `${completeness.toFixed(1)}%`, icon: CheckCircle, color: "text-emerald-500", highlight: true },
-          { label: "Anomaly count", value: outlierResult ? outlierResult.total_outliers : 0, icon: AlertTriangle, color: "text-rose-500" },
-          { label: "Violations", value: validationResult ? validationResult.total_violations : 0, icon: ShieldCheck, color: "text-amber-500" },
-          { label: "Quant vectors", value: numericalStats.length, icon: Activity, color: "text-blue-500" },
-          { label: "Qual vectors", value: categoricalStats.length, icon: Layers3, color: "text-violet-500" },
+          { label: "Observations", value: metadata.rows.toLocaleString(), icon: Database, color: "text-slate-500", barColor: "bg-slate-700" },
+          { label: "Completeness", value: `${completeness.toFixed(1)}%`, icon: CheckCircle, color: "text-emerald-400", barColor: "bg-emerald-500", highlight: true },
+          { label: "Anomaly count", value: outlierResult ? outlierResult.total_outliers : 0, icon: AlertTriangle, color: "text-rose-400", barColor: "bg-rose-500" },
+          { label: "Violations", value: validationResult ? validationResult.total_violations : 0, icon: ShieldCheck, color: "text-amber-400", barColor: "bg-amber-500" },
+          { label: "Quant vectors", value: numericalStats.length, icon: Activity, color: "text-indigo-400", barColor: "bg-indigo-500" },
+          { label: "Qual vectors", value: categoricalStats.length, icon: Layers3, color: "text-violet-400", barColor: "bg-violet-500" },
         ].map((kpi, i) => (
-          <div key={i} className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-5 relative overflow-hidden group hover:border-indigo-400 transition-colors">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">{kpi.label}</span>
-              <kpi.icon size={16} className={kpi.color} strokeWidth={2.5} />
+          <div key={i} className="bg-[#0b1329]/60 border-2 border-slate-800 rounded-xl p-4 relative overflow-hidden group hover:border-slate-700 transition-colors shadow-md">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider leading-none">{kpi.label}</span>
+              <kpi.icon size={14} className={kpi.color} />
             </div>
-            <h3 className={`text-2xl font-mono font-bold tracking-tighter tabular-nums ${kpi.highlight ? kpi.color : "text-slate-900 dark:text-white"}`}>
+            <h3 className={`text-xl font-mono font-bold tracking-tight tabular-nums ${kpi.highlight ? kpi.color : "text-slate-100"}`}>
               {kpi.value}
             </h3>
-            <div className="h-1 w-full bg-slate-100 dark:bg-slate-900 rounded-full mt-4 overflow-hidden">
-               <div className={`h-full ${kpi.color.replace('text', 'bg')} opacity-30`} style={{ width: '100%' }}></div>
+            <div className="h-1 w-full bg-slate-950 border border-slate-900/60 rounded-full mt-3 overflow-hidden">
+               <div className={`h-full ${kpi.barColor} opacity-30`} style={{ width: '100%' }}></div>
             </div>
           </div>
         ))}
       </div>
 
       {/* ================================================= */}
-      {/* DATA QUALITY SECTION: Grid Layout */}
-      {/* = ================================================= */}
+      {/* 3. INDEPENDENT DATA QUALITY ENCLOSURES */}
+      {/* ================================================= */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        
-        {/* MISSING VALUES */}
-        <div className="xl:col-span-8 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
-          <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
-            <div className="flex items-center gap-3">
-              <BarChart3 size={18} className="text-indigo-500" />
-              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-600 dark:text-slate-300">Null Density Distribution</h3>
+        {/* NULL DENSITY ISOLATED TRACK */}
+        <div className="xl:col-span-8">
+          <GraphEnclosure
+            title="Null Density Distribution"
+            subtitle="Null observational gaps categorized across active schema fields"
+            icon={BarChart3}
+            hasData={missingChartData && missingChartData.length > 0}
+          >
+            <div className="h-[450px] w-full overflow-hidden pl-4 pr-2">
+              <BarChartComponent
+                data={missingChartData}
+                xKey="column"
+                yKey="missing"
+                color="#818cf8"
+                margin={{ top: 20, right: 10, left: 55, bottom: 100 }}
+              />
             </div>
-            <span className="text-[10px] font-mono bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-500">Unit: Frequency</span>
-          </div>
-          <div className="p-8">
-            <BarChartComponent data={missingChartData} xKey="column" yKey="missing" />
-          </div>
+          </GraphEnclosure>
         </div>
 
-        {/* QUALITY PIE */}
-        <div className="xl:col-span-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-8 flex flex-col justify-center">
-          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 mb-8 flex items-center gap-2">
-            <RefreshCcw size={16} className="text-emerald-500" /> Integrity Ratio
-          </h3>
-          <div className="h-64">
-            <PieChartComponent data={qualityPieData} nameKey="name" dataKey="value" />
-          </div>
-          <div className="mt-8 grid grid-cols-2 gap-4 font-mono text-[11px]">
-             <div className="flex flex-col border-l-2 border-emerald-500 pl-2">
-                <span className="text-slate-400 uppercase">Available</span>
-                <span className="text-lg font-bold">{qualityPieData[0].value.toLocaleString()}</span>
-             </div>
-             <div className="flex flex-col border-l-2 border-rose-500 pl-2">
-                <span className="text-slate-400 uppercase">Missing</span>
-                <span className="text-lg font-bold">{qualityPieData[1].value.toLocaleString()}</span>
-             </div>
-          </div>
+        {/* INTEGRITY RATIO ISOLATED TRACK */}
+        <div className="xl:col-span-4">
+          <GraphEnclosure
+            title="Integrity Ratio"
+            subtitle="Proportional completeness mix calculation"
+            icon={RefreshCcw}
+            hasData={qualityPieData && qualityPieData.length > 0}
+          >
+            <div className="h-[350px] w-full flex items-center justify-center mt-2">
+              <PieChartComponent data={qualityPieData} nameKey="name" dataKey="value" />
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-4 font-mono text-[11px] border-t border-slate-900 pt-4 w-full">
+               <div className="flex flex-col border-l-2 border-emerald-500 pl-2">
+                  <span className="text-slate-400 uppercase">Available</span>
+                  <span className="text-sm font-bold text-slate-200 mt-0.5">{qualityPieData[0].value.toLocaleString()}</span>
+               </div>
+               <div className="flex flex-col border-l-2 border-rose-500 pl-2">
+                  <span className="text-slate-400 uppercase">Missing</span>
+                  <span className="text-sm font-bold text-slate-200 mt-0.5">{qualityPieData[1].value.toLocaleString()}</span>
+               </div>
+            </div>
+          </GraphEnclosure>
         </div>
       </div>
 
-      {/* ================================================= */}
-      {/* ADVANCED STATISTICS PANEL: Laboratory Style */}
-      {/* ================================================= */}
-      {statistics && (
-        <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
-          <div className="px-8 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center gap-4 bg-slate-900 text-white">
-            <div className="p-2 bg-indigo-500 rounded text-white shadow-lg shadow-indigo-500/20">
-              <Sigma size={18} />
-            </div>
-            <div>
-              <h3 className="text-xs font-black uppercase tracking-[0.2em]">Descriptive Statistics laboratory</h3>
-              <p className="text-[10px] text-slate-400 font-medium">Confidence Interval: 95% σ-verified</p>
-            </div>
+      {/* ===================================================== */}
+      {/* 4. INDEPENDENT DISPERSION PROFILE ENCLOSURES */}
+      {/* ===================================================== */}
+      {outlierResult?.visualizations && (
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          {/* FEATURE VALUE HISTOGRAMS */}
+          <div className="xl:col-span-7">
+            <GraphEnclosure
+              title="Feature Value Histograms"
+              subtitle="Continuous distribution parameters over selected targets"
+              icon={BarChart3}
+              hasData={outlierResult.visualizations.histogram?.length > 0}
+            >
+              <div className="h-[380px] w-full overflow-hidden">
+                <HistogramChart data={outlierResult.visualizations.histogram} />
+              </div>
+            </GraphEnclosure>
           </div>
-          <div className="p-8">
-            <StatisticsPanel statistics={statistics} />
+
+          {/* RESIDUAL SCATTER MAP */}
+          <div className="xl:col-span-5">
+            <GraphEnclosure
+              title="Residual Scatter Map"
+              subtitle="Bivariate cross-feature outlier detection maps"
+              icon={Crosshair}
+              hasData={outlierResult.visualizations.scatterplot?.length > 0}
+            >
+              <div className="h-[380px] w-full overflow-hidden">
+                <ScatterChartComponent data={outlierResult.visualizations.scatterplot} xKey="x" yKey="y" color="#818cf8" />
+              </div>
+            </GraphEnclosure>
           </div>
         </div>
       )}
 
       {/* ================================================= */}
-      {/* CORRELATION MATRIX & VALIDATION GRID */}
+      {/* 5. STATISTICS LABORATORY & BOXPLOT NESTING */}
       {/* ================================================= */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        {correlationStats.length > 0 && (
-          <div className="xl:col-span-7 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-8">
-            <div className="flex items-center gap-3 mb-8">
-              <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg">
-                <Binary className="text-indigo-600" size={20} />
-              </div>
-              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Covariance Heatmap (Pearson)</h3>
+      {statistics && (
+        <div className="bg-[#0f172a] border-2 border-slate-800/80 rounded-xl shadow-2xl overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-slate-900 flex items-center gap-3 bg-[#0b1329] text-white">
+            <div className="p-1.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-md">
+              <Sigma size={15} />
             </div>
-            <CorrelationHeatmap data={correlationStats}/>
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-wider font-mono">Descriptive Statistics Laboratory</h3>
+              <p className="text-[10px] text-slate-500 font-mono uppercase mt-0.5">Confidence Interval: 95% σ-verified</p>
+            </div>
           </div>
-        )}
-
-        <div className="xl:col-span-5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-8 flex flex-col">
-          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-500 mb-8 flex items-center gap-2">
-            <ShieldCheck size={18} className="text-amber-500" /> Violation Distribution
-          </h3>
-          <div className="flex-grow">
-            <BarChartComponent data={validationChartData} xKey="severity" yKey="count" />
+          <div className="p-6 bg-slate-950/10 space-y-6">
+            <StatisticsPanel statistics={statistics} />
+            
+            {/* BOXPLOT HOISTED IN AN INDEPENDENT ENCLOSURE SLOT */}
+            {outlierResult?.visualizations?.boxplot && (
+              <GraphEnclosure
+                title="Structural Outlier Quantiles"
+                subtitle="Whisker summary diagnostics evaluating interquartile tracking boundaries"
+                icon={Activity}
+                hasData={true}
+              >
+                <div className="pt-2 h-[300px]">
+                  <BoxPlotComponent stats={outlierResult.visualizations.boxplot} />
+                </div>
+              </GraphEnclosure>
+            )}
           </div>
         </div>
-      </div>
+      )}
 
       {/* ================================================= */}
-      {/* WEIGHT ESTIMATION & PIPELINE PROGRESS */}
+      {/* 6. CORRELATION & VALIDATION ENCLOSURES */}
       {/* ================================================= */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        
-        {estimationResult && (
-          <div className="xl:col-span-8 bg-slate-900 dark:bg-black rounded-xl p-10 text-white border border-slate-800 shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-8 opacity-5">
-              <Sigma size={200} />
-            </div>
-            <div className="relative z-10 space-y-8">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                  <h3 className="text-xl font-bold tracking-tight uppercase">Computational Bias Correction</h3>
-                  <p className="text-slate-400 text-xs mt-1 uppercase tracking-widest">Iterative Proportional Fitting Comparison</p>
-                </div>
-                <div className="bg-slate-800 px-4 py-2 rounded-lg border border-slate-700 font-mono">
-                  <span className="text-xs text-slate-500 block uppercase font-black">Convergence Rate</span>
-                  <span className="text-lg font-bold text-indigo-400">0.0001Δ</span>
-                </div>
+        {/* COVARIANCE HEATMAP */}
+        {correlationStats.length > 0 && (
+          <div className="xl:col-span-7">
+            <GraphEnclosure
+              title="Covariance Heatmap (Pearson)"
+              subtitle="Linear product-moment relational outputs coefficient metrics"
+              icon={Binary}
+              hasData={true}
+            >
+              <div className="w-full overflow-hidden">
+                <CorrelationHeatmap data={correlationStats} />
               </div>
-              <BarChartComponent data={weightComparisonData} xKey="label" yKey="value" />
-            </div>
+            </GraphEnclosure>
           </div>
         )}
-{/* ================================================= */}
-{/* CONVERGENCE WORKFLOW - FULL WIDTH WORKBENCH STYLE */}
-{/* ================================================= */}
-<div className="col-span-12 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm transition-all">
-  {/* Sub-header for the chart area */}
-  <div className="px-8 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
-    <div className="flex items-center gap-3">
-      <RefreshCcw className="text-indigo-500 animate-spin-slow" size={18} />
-      <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">
-        Convergence Workflow Pipeline
-      </h3>
-    </div>
-    <div className="flex items-center gap-4">
-      <span className="text-[10px] font-mono font-bold text-slate-400 bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 uppercase">
-        Mode: Linear_Sequence
-      </span>
-    </div>
-  </div>
 
-  {/* Chart Area */}
-  <div className="p-8">
-    <div className="h-72 w-full">
-      <LineChartComponent 
-        data={workflowData} 
-        xKey="step" 
-        yKey="completed" 
-        color="#6366f1" 
-      />
-    </div>
-    
-    {/* Professional Footer for the chart context */}
-    <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-      <p className="text-[10px] font-medium text-slate-400 italic">
-        * Monitoring iterative proportional fitting convergence across active transformation buffers.
-      </p>
-      <div className="flex items-center gap-2">
-        <div className="h-2 w-2 rounded-full bg-indigo-500 shadow-[0_0_8px_#6366f1]" />
-        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Live telemetry</span>
+        {/* VIOLATION SEVERITY DISTRIBUTION */}
+        {validationChartData.length > 0 && (
+          <div className="xl:col-span-5">
+            <GraphEnclosure
+              title="Violation Severity Distribution"
+              subtitle="Rule constraint failure weights array metrics"
+              icon={ShieldCheck}
+              hasData={true}
+            >
+              <div className="h-[320px] w-full overflow-hidden">
+                <BarChartComponent data={validationChartData} xKey="severity" yKey="count" color="#fbbf24" />
+              </div>
+            </GraphEnclosure>
+          </div>
+        )}
       </div>
-    </div>
-  </div>
-</div>
+
+      {/* ================================================= */}
+      {/* 7. BIAS ESTIMATION & WORKFLOW PROGRESS */}
+      {/* ================================================= */}
+      <div className="space-y-6">
+        {/* BIAS CORRECTION BAR TRACK */}
+        {estimationResult && (
+          <GraphEnclosure
+            title="Computational Bias Correction Profile"
+            subtitle="Iterative proportional fitting mapping matrix adjustments"
+            icon={Sigma}
+            hasData={true}
+          >
+            <div className="relative z-10 space-y-4">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-900 pb-4">
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 font-mono">Iterative Proportional Fitting Comparison</h4>
+                </div>
+                <div className="bg-slate-950 px-3 py-1 rounded border border-slate-900 font-mono text-right">
+                  <span className="text-[9px] text-slate-500 block uppercase font-bold tracking-wide">Convergence Rate</span>
+                  <span className="text-sm font-bold text-indigo-400 font-mono">0.0001Δ</span>
+                </div>
+              </div>
+              <div className="h-[340px] w-full overflow-hidden">
+                <BarChartComponent data={weightComparisonData} xKey="label" yKey="value" color="#818cf8" />
+              </div>
+            </div>
+          </GraphEnclosure>
+        )}
+
+        {/* WORKFLOW PIPELINE PROGRESS TRACK */}
+        <GraphEnclosure
+          title="Convergence Workflow Pipeline"
+          subtitle="Monitoring fitting iterations sequential convergence logs across session states"
+          icon={RefreshCcw}
+          hasData={workflowData && workflowData.length > 0}
+        >
+          <div>
+            {/* FIXED HEIGHT CLEARANCE: Expanded layout wrapper box height from h-80 (320px) to h-[380px] */}
+            <div className="h-[380px] w-full overflow-hidden pl-4 pr-2">
+              <LineChartComponent
+                data={workflowData}
+                xKey="step"
+                yKey="completed"
+                color="#818cf8"
+                margin={{ top: 20, right: 15, left: 35, bottom: 45 }}
+              />
+            </div>
+            <div className="mt-4 pt-4 border-t border-slate-900 flex items-center justify-between">
+              <p className="text-[10px] font-medium text-slate-500 font-mono">
+                * Monitoring iterative proportional fitting convergence across active transformation buffers.
+              </p>
+              <div className="flex items-center gap-2">
+                <div className="h-1.5 w-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_#6366f1] animate-pulse" />
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono">Live telemetry</span>
+              </div>
+            </div>
+          </div>
+        </GraphEnclosure>
       </div>
+
     </div>
   );
 };
