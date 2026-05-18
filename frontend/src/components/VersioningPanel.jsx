@@ -1,5 +1,21 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { 
+  FolderKey, 
+  FileSpreadsheet, 
+  Layers3, 
+  Trash2, 
+  RefreshCw, 
+  Archive, 
+  Eye, 
+  BarChart3, 
+  AlertTriangle,
+  HelpCircle,
+  Binary,
+  ChevronRight,
+  Database,
+  ArrowRight
+} from "lucide-react";
 
 const API_BASE = 'http://localhost:8000';
 
@@ -31,7 +47,7 @@ function getStageRank(stageName) {
   return STAGE_ORDER[stageName] ?? 99;
 }
 
-function VersioningPanel({ data, onViewAnalytics }) {
+function VersioningPanel({ data, onViewAnalytics, onRedirectToViewer }) {
   const [datasets, setDatasets] = useState([]);
   const [selectedDataset, setSelectedDataset] = useState('');
   const [selectedFile, setSelectedFile] = useState('');
@@ -149,6 +165,30 @@ function VersioningPanel({ data, onViewAnalytics }) {
     if (!selectedDataset || !selectedFile) return;
     setLoading(true);
     try {
+      // INSTALLED: Custom redirection trigger initializing full dataset explorer models
+      if (mode === 'dataset_viewer') {
+        const targetFilePath = selectedFilePath || datasetFiles.find((file) => file.file_name === selectedFile)?.file_path || '';
+        const previewResponse = await axios.get(
+          `${API_BASE}/api/versioning/datasets/${encodeURIComponent(selectedDataset)}/files/${encodeURIComponent(selectedFile)}/preview`
+        );
+
+        const comprehensiveDatasetPayload = {
+          metadata: {
+            filename: selectedFile,
+            dataset_name: selectedDataset,
+            file_path: previewResponse.data?.file_path || targetFilePath,
+            rows: previewResponse.data?.rows ?? 0,
+            columns: previewResponse.data?.columns ?? 0,
+            null_counts: previewResponse.data?.missing_counts || {},
+          },
+          preview: previewResponse.data?.preview || [],
+        };
+
+        setOutput(previewResponse.data);
+        onRedirectToViewer?.(comprehensiveDatasetPayload);
+        return;
+      }
+
       if (mode === 'analytics') {
         const filePathForAnalytics = selectedFilePath || datasetFiles.find((file) => file.file_name === selectedFile)?.file_path || '';
         const [previewResponse, analyticsResponse, statsResponse] = await Promise.all([
@@ -158,7 +198,7 @@ function VersioningPanel({ data, onViewAnalytics }) {
           axios.get(
             `${API_BASE}/api/versioning/datasets/${encodeURIComponent(selectedDataset)}/files/${encodeURIComponent(selectedFile)}/analytics`
           ),
-          axios.post(`${API_BASE}/api/statistics/profile`, {
+          axios.get(`${API_BASE}/api/statistics/profile`, {
             file_path: filePathForAnalytics,
           }),
         ]);
@@ -224,167 +264,198 @@ function VersioningPanel({ data, onViewAnalytics }) {
   const stageChain = datasetFiles.map((file) => file.stage || file.file_name.split('_', 1)[0]);
 
   return (
-    <div className="space-y-6 p-1">
-      {/* Top Header Card */}
-      <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Current Dataset</p>
-          <h3 className="text-xl font-extrabold text-slate-900 mt-0.5">{currentDatasetName || 'No dataset loaded yet'}</h3>
-          <p className="text-xs text-slate-500 mt-0.5">Reload-safe folder view for the dataset being processed right now.</p>
+    <div className="space-y-6 antialiased text-slate-200 font-sans max-w-[1600px] mx-auto pb-12 px-4 sm:px-6 selection:bg-slate-800">
+      
+      {/* ===================================================== */}
+      {/* 1. MAIN SYSTEM VERSIONING CONTROLLER HEADER */}
+      {/* ===================================================== */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between rounded-xl border-2 border-slate-800/80 bg-[#0f172a] p-5 shadow-xl gap-4">
+        <div className="flex items-center gap-4">
+          <div className="p-2.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-md shrink-0">
+            <Layers3 size={20} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="flex h-1.5 w-1.5 rounded-full bg-indigo-400 animate-pulse" />
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 font-mono">Workspace v4.2</p>
+            </div>
+            <h3 className="text-sm font-bold tracking-tight text-slate-200 uppercase font-mono mt-0.5">
+              Active Project Checkpoint: <span className="text-indigo-400 font-sans normal-case tracking-normal pl-0.5">{currentDatasetName || 'No dataset loaded yet'}</span>
+            </h3>
+            <p className="text-[11px] text-slate-500 font-medium">Reload-safe snapshot states array mapping repository</p>
+          </div>
         </div>
-        <div className="flex items-center gap-2.5">
+        
+        <div className="flex items-center gap-2.5 shrink-0">
           <button 
-            className="rounded-lg bg-slate-100 hover:bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors disabled:opacity-50" 
+            className="flex items-center gap-1.5 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700/60 px-3 py-1.5 text-xs font-bold uppercase text-slate-200 tracking-wide transition-colors font-mono disabled:opacity-40" 
             disabled={loading} 
             onClick={fetchDatasets}
           >
-            Refresh Folders
+            <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Refresh Folders
           </button>
           <button 
-            className="rounded-lg bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors disabled:opacity-50" 
+            className="flex items-center gap-1.5 rounded-md bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-xs font-bold uppercase text-white tracking-wide transition-colors shadow-md font-mono disabled:opacity-40" 
             disabled={loading || !selectedDataset} 
             onClick={compressSelectedFolder}
           >
-            Compress Folder
+            <Archive size={13} /> Compress Folder
           </button>
         </div>
       </div>
 
-      {/* Main Panel Sections */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left Column: Folders */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-slate-400">Dataset Folders</h3>
-          <div className="space-y-2.5 max-h-[440px] overflow-auto pr-1">
+      {/* ===================================================== */}
+      {/* 2. DUAL COLUMN CONTROL GRID WORKBENCH */}
+      {/* ===================================================== */}
+      <div className="grid gap-6 lg:grid-cols-12 items-start">
+        
+        {/* LEFT COLUMN PANEL: FOLDERS TRACK TREE */}
+        <div className="lg:col-span-4 rounded-xl border-2 border-slate-800/80 bg-[#0f172a] p-5 shadow-xl">
+          <div className="flex items-center gap-2 mb-4 pb-2 border-b border-slate-900">
+            <FolderKey size={14} className="text-indigo-400" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 font-mono">Dataset Repositories</h3>
+          </div>
+          
+          <div className="space-y-2 max-h-[460px] overflow-y-auto custom-scrollbar pr-1">
             {datasets.map((item) => (
               <button
                 key={item.dataset_name}
-                className={`w-full rounded-xl border p-3.5 text-left text-sm transition-all duration-150 ${
+                className={`w-full rounded-lg border-2 p-3.5 text-left text-xs transition-all duration-150 relative ${
                   selectedDataset === item.dataset_name 
-                    ? 'border-indigo-500 bg-indigo-50/70 text-indigo-900 shadow-sm' 
-                    : 'border-slate-100 bg-slate-50/50 text-slate-700 hover:bg-slate-100/80'
+                    ? 'border-indigo-500 bg-[#0b1329] text-slate-200 ring-1 ring-indigo-500/20 shadow-md' 
+                    : 'border-slate-900 bg-[#0b1329]/20 text-slate-400 hover:border-slate-800 hover:bg-slate-950/20'
                 }`}
                 onClick={() => setSelectedDataset(item.dataset_name)}
               >
-                <div className="font-bold text-slate-900">{item.dataset_name}</div>
-                <div className="mt-1 text-[10px] font-medium uppercase tracking-wider text-slate-400">
-                  {(item.files || []).length} stage file{(item.files || []).length === 1 ? '' : 's'}
+                <div className="font-bold text-slate-200 truncate font-sans text-sm tracking-tight">{item.dataset_name}</div>
+                <div className="mt-2 inline-flex items-center gap-1.5 text-[9px] font-mono font-bold uppercase tracking-wide bg-slate-950 border border-slate-900 px-2 py-0.5 rounded text-slate-500">
+                  <Binary size={10} className="text-indigo-400/60" />
+                  {(item.files || []).length} Stage Vector{(item.files || []).length === 1 ? '' : 's'}
                 </div>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Right Column: Files & Pipeline Tracking */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
-          <div className="mb-5 flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-4">
+        {/* RIGHT COLUMN PANEL: CHRONOLOGICAL STAGE FILE SEGMENTS */}
+        <div className="lg:col-span-8 rounded-xl border-2 border-slate-800/80 bg-[#0f172a] p-5 shadow-xl">
+          
+          {/* TRACK LAB HEADER */}
+          <div className="mb-5 flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-slate-900 pb-4">
             <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Stage Files</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Base dataset plus each preprocessing step saved in order.</p>
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet size={14} className="text-emerald-400" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 font-mono">Processing Checkpoint Buffer</h3>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1">Sequential serialization frames from target workspace context paths</p>
             </div>
-            <div className="max-w-xs text-left md:text-right">
-              <span className="inline-block rounded bg-slate-100 px-2 py-1 font-mono text-[10px] text-slate-600 break-all">
-                {selectedFolder?.folder_path || 'No folder selected'}
+            <div className="max-w-xs self-start">
+              <span className="inline-block rounded bg-slate-950 border border-slate-900/60 px-2.5 py-1 font-mono text-[10px] text-slate-500 break-all shadow-inner">
+                {selectedFolder?.folder_path || 'NO_BUFFER_PATH_SELECTED'}
               </span>
             </div>
           </div>
 
-          {/* Pipeline Badge Flow */}
+          {/* PIPELINE STAGE PIPELINE PIPES */}
           {stageChain.length > 0 && (
-            <div className="mb-5 flex flex-wrap items-center gap-1.5 bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">
+            <div className="mb-5 flex flex-wrap items-center gap-1.5 bg-slate-950/30 p-3 rounded-lg border border-slate-900/60 shadow-inner">
               {stageChain.map((stage, idx) => (
                 <div key={idx} className="flex items-center gap-1.5">
-                  <span className="rounded-md border border-indigo-100 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-indigo-600 shadow-xs">
+                  <span className="rounded border border-indigo-500/20 bg-[#0b1329] px-2 py-0.5 text-[9px] font-bold font-mono uppercase tracking-wider text-indigo-400">
                     {STAGE_LABELS[stage] || stage}
                   </span>
                   {idx < stageChain.length - 1 && (
-                    <svg className="h-3 w-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
+                    <ChevronRight size={12} className="text-slate-700 shrink-0" />
                   )}
                 </div>
               ))}
             </div>
           )}
 
-          {/* File Grid */}
-          <div className="grid gap-3 md:grid-cols-2">
+          {/* IMMUTABLE DATA CHECKPOINT LIST FILE GRID */}
+          <div className="grid gap-3 sm:grid-cols-2">
             {datasetFiles.map((file) => (
               <div 
                 key={file.file_name} 
                 onClick={() => { setSelectedFile(file.file_name); setSelectedFilePath(file.file_path); }}
-                className={`group flex items-center justify-between rounded-xl border p-3.5 text-sm cursor-pointer transition-all ${
+                className={`group flex items-center justify-between rounded-lg border-2 p-3 text-xs cursor-pointer transition-all min-w-0 ${
                   selectedFile === file.file_name 
-                    ? 'border-emerald-500 bg-emerald-50/60 shadow-xs' 
-                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/40'
+                    ? 'border-emerald-500 bg-[#0b1329] shadow-inner' 
+                    : 'border-slate-900 bg-[#0b1329]/10 hover:border-slate-800'
                 }`}
               >
-                <div className="text-left pr-2 overflow-hidden">
-                  <div className="font-mono text-xs font-semibold text-slate-700 break-all">{file.file_name}</div>
-                  <div className="mt-1 inline-block text-[9px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
-                    {STAGE_LABELS[file.stage] || file.stage}
+                <div className="text-left pr-2 overflow-hidden min-w-0 flex-1">
+                  <div className="font-mono text-[11px] font-semibold text-slate-300 break-all truncate leading-relaxed">{file.file_name}</div>
+                  <div className="mt-1.5 inline-block text-[9px] font-mono font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/5 border border-emerald-500/10 px-2 py-0.5 rounded-sm">
+                    Stage: {STAGE_LABELS[file.stage] || file.stage}
                   </div>
                 </div>
-                <div className="pl-1">
+                <div className="pl-2 shrink-0">
                   <button 
-                    title="Delete file" 
+                    title="Delete dataset step from disk ledger" 
                     onClick={(e) => {
-                      e.stopPropagation(); // Stops selecting the row when pressing delete
+                      e.stopPropagation(); 
                       deleteSelectedFile(file.file_name);
                     }} 
-                    className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                    className="p-1.5 rounded text-slate-600 hover:text-rose-400 border border-transparent hover:border-slate-800 hover:bg-slate-950 transition-colors"
                   >
-                    {/* Trash Icon SVG */}
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
+                    <Trash2 size={13} />
                   </button>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Bottom Action Triggers */}
-          <div className="mt-5 flex flex-wrap gap-2.5 border-t border-slate-100 pt-4">
+          {/* WORKBENCH BOTTOM OPERATION DEEP ACTION PANEL */}
+          <div className="mt-6 flex flex-wrap gap-2.5 border-t border-slate-900 pt-4">
             <button 
-              className="rounded-lg bg-slate-900 hover:bg-slate-800 px-4 py-2 text-xs font-semibold text-white transition-colors disabled:opacity-50" 
+              className="flex items-center gap-1.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700/60 px-4 py-2 text-xs font-bold uppercase text-slate-200 tracking-wide transition-colors font-mono disabled:opacity-40" 
               disabled={loading || !selectedDataset || !selectedFile} 
               onClick={() => previewSelectedFile('preview')}
             >
-              Preview Selected
+              <Eye size={13} /> Preview
             </button>
             <button 
-              className="rounded-lg bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-xs font-semibold text-white shadow-xs transition-colors disabled:opacity-50" 
+              className="flex items-center gap-1.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700/60 px-4 py-2 text-xs font-bold uppercase text-slate-200 tracking-wide transition-colors font-mono disabled:opacity-40" 
+              disabled={loading || !selectedDataset || !selectedFile} 
+              onClick={() => previewSelectedFile('dataset_viewer')}
+            >
+              <Database size={13} /> Dataset
+            </button>
+            <button 
+              className="flex items-center gap-1.5 rounded bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-xs font-bold uppercase text-white tracking-wide transition-colors shadow-md font-mono disabled:opacity-40 ml-auto" 
               disabled={loading || !selectedDataset || !selectedFile} 
               onClick={() => previewSelectedFile('analytics')}
             >
-              View Analytics
+              <BarChart3 size={13} /> Analytics
             </button>
           </div>
+          
         </div>
       </div>
 
-      {/* Delete Confirmation Modal */}
+      {/* ===================================================== */}
+      {/* 3. CONFIRMATION DELETION MODAL LAYER */}
+      {/* ===================================================== */}
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-xs" onClick={cancelDelete} />
-          <div className="relative w-full max-w-md rounded-xl bg-white border border-slate-200 p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-50 text-rose-600 mb-4">
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={cancelDelete} />
+          <div className="relative w-full max-w-md rounded-xl bg-[#0f172a] border-2 border-slate-800 p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-rose-500/10 border border-rose-500/20 text-rose-400 mb-4">
+              <AlertTriangle size={18} />
             </div>
-            <h4 className="text-lg font-bold text-slate-900">Confirm Deletion</h4>
-            <p className="mt-2 text-sm text-slate-500 leading-relaxed">
-              Are you sure you want to delete <span className="font-mono text-xs font-bold text-slate-700 bg-slate-100 px-1 py-0.5 rounded break-all">{fileToDelete}</span> from dataset <span className="font-semibold text-slate-800">{selectedDataset}</span>? This action cannot be undone.
+            <h4 className="text-sm font-bold text-slate-200 uppercase font-mono tracking-tight">Confirm Deletion</h4>
+            <p className="mt-3 text-xs text-slate-400 leading-relaxed font-sans">
+              Are you sure you want to purge <span className="font-mono text-rose-400 font-bold bg-slate-950 border border-slate-900 px-1.5 py-0.5 rounded break-all">{fileToDelete}</span> from repository ledger <span className="font-semibold text-slate-300 font-mono bg-slate-950 border border-slate-900/60 px-1 py-0.5 rounded">{selectedDataset}</span>? This structural state file will be purged from the disk permanently.
             </p>
-            <div className="mt-5 flex justify-end gap-2.5">
-              <button onClick={cancelDelete} className="rounded-lg px-4 py-2 bg-slate-100 hover:bg-slate-200 text-sm font-semibold text-slate-700 transition-colors">Cancel</button>
-              <button onClick={performDeleteFile} className="rounded-lg px-4 py-2 bg-rose-600 hover:bg-rose-700 text-sm font-semibold text-white shadow-sm transition-colors">Delete File</button>
+            <div className="mt-6 flex justify-end gap-2.5 font-mono text-[11px]">
+              <button onClick={cancelDelete} className="rounded border border-slate-800 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 px-3.5 py-2 font-bold uppercase transition-colors">Cancel</button>
+              <button onClick={performDeleteFile} className="rounded bg-rose-600 hover:bg-rose-500 text-white px-3.5 py-2 font-bold uppercase transition-colors shadow-md">Delete File</button>
             </div>
           </div>
         </div>
       )}
+      
     </div>
   );
 }

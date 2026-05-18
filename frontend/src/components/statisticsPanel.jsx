@@ -8,13 +8,14 @@ import {
   Layers3,
   Table as TableIcon,
   Binary,
-  Info,
   ArrowUpRight
 } from "lucide-react";
 
 import BarChartComponent from "./charts/BarChartComponent";
 import PieChartComponent from "./charts/PieChartComponent";
 import ScatterChartComponent from "./charts/ScatterChartComponent";
+import GraphEnclosure from "./UI/graphModal";
+
 
 const StatisticsPanel = ({ statistics }) => {
   if (!statistics) return null;
@@ -50,136 +51,139 @@ const StatisticsPanel = ({ statistics }) => {
     }));
 
   return (
-    <div className="space-y-6 antialiased text-slate-900 dark:text-slate-100 font-sans selection:bg-indigo-100">
+    <div className="space-y-6 antialiased text-slate-200 font-sans max-w-[1600px] mx-auto pb-10 selection:bg-slate-800">
       
       {/* ================================================= */}
       {/* 1. ANALYTIC OVERVIEW SCORECARDS */}
       {/* ================================================= */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Numerical Features", value: totalNumeric, icon: Sigma, color: "text-indigo-600 dark:text-indigo-400", bg: "bg-indigo-50/50 dark:bg-indigo-900/10", border: "border-indigo-100 dark:border-indigo-900/30" },
-          { label: "Categorical Features", value: totalCategorical, icon: Database, color: "text-violet-600 dark:text-violet-400", bg: "bg-violet-50/50 dark:bg-violet-900/10", border: "border-violet-100 dark:border-violet-900/30" },
-          { label: "Correlation Pairs", value: correlation.length, icon: TrendingUp, color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50/50 dark:bg-emerald-900/10", border: "border-emerald-100 dark:border-emerald-900/30" },
-          { label: "Total Dimensions", value: totalNumeric + totalCategorical, icon: Layers3, color: "text-slate-600 dark:text-slate-400", bg: "bg-slate-50/50 dark:bg-slate-900/10", border: "border-slate-100 dark:border-slate-800" }
+          { label: "Numerical Features", value: totalNumeric, icon: Sigma, color: "text-indigo-400", bg: "bg-slate-950/60", border: "border-slate-800" },
+          { label: "Categorical Features", value: totalCategorical, icon: Database, color: "text-violet-400", bg: "bg-slate-950/60", border: "border-slate-800" },
+          { label: "Correlation Pairs", value: correlation.length, icon: TrendingUp, color: "text-emerald-400", bg: "bg-slate-950/60", border: "border-slate-800" },
+          { label: "Total Dimensions", value: totalNumeric + totalCategorical, icon: Layers3, color: "text-slate-400", bg: "bg-slate-950/60", border: "border-slate-800" }
         ].map((stat, i) => (
-          <div key={i} className={`relative overflow-hidden bg-white dark:bg-slate-950 border ${stat.border} rounded-lg p-5 shadow-sm transition-all hover:shadow-md`}>
-            <div className="flex items-center justify-between mb-3">
-              <div className={`p-2 rounded ${stat.bg}`}>
-                <stat.icon className={stat.color} size={16} />
-              </div>
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+          <div key={i} className="relative bg-[#0b1329]/60 border-2 border-slate-800 rounded-xl p-5 shadow-md hover:border-slate-700 transition-colors duration-150">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                 {stat.label}
               </span>
+              <div className={`p-1.5 rounded-sm ${stat.bg} text-slate-400 border border-slate-700/30 shrink-0`}>
+                <stat.icon className={stat.color} size={14} />
+              </div>
             </div>
-            <div className="flex items-baseline gap-2">
-              <h3 className="text-3xl font-mono font-bold tracking-tighter">
+            <div className="flex items-baseline justify-between mt-1">
+              <h3 className="text-2xl font-bold text-slate-100 font-mono tracking-tight">
                 {stat.value}
               </h3>
-              <ArrowUpRight size={14} className="text-slate-300" />
+              <ArrowUpRight size={13} className="text-slate-600" />
             </div>
           </div>
         ))}
       </div>
 
       {/* ================================================= */}
-      {/* 2. CORE DISTRIBUTION ANALYTICS */}
+      {/* 2. CORE DISTRIBUTION ANALYTICS IN ENCLOSURES */}
       {/* ================================================= */}
-      <div className="grid lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* MEAN DISTRIBUTION */}
-        <div className="lg:col-span-8 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden shadow-sm">
-          <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <BarChart3 size={14} className="text-indigo-500" />
-              <h3 className="text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">
-                Variable Central Tendency (Arithmetic Mean)
-              </h3>
+        {/* VARIABLE CENTRAL TENDENCY BAR ENCLOSURE */}
+        <div className="lg:col-span-8">
+          <GraphEnclosure
+            title="Variable Central Tendency (Arithmetic Mean)"
+            subtitle="Central location metrics overview across active quantitative profiles"
+            tooltipText="Displays arithmetic averages. Long schema tokens are adjusted dynamically to verify alignment."
+            icon={BarChart3}
+            hasData={meanData && meanData.length > 0}
+          >
+            <div className="h-[400px] w-full overflow-hidden pl-4 pr-2">
+              <BarChartComponent 
+                data={meanData} 
+                xKey="column" 
+                yKey="mean" 
+                color="#818cf8" 
+                margin={{ top: 20, right: 10, left: 55, bottom: 100 }}
+              />
             </div>
-            <Info size={14} className="text-slate-300 hover:text-indigo-500 cursor-help" />
-          </div>
-          <div className="p-6 h-[380px]">
-            <BarChartComponent data={meanData} xKey="column" yKey="mean" color="#6366f1" />
-          </div>
+          </GraphEnclosure>
         </div>
 
-        {/* SCHEMA COMPOSITION */}
-        <div className="lg:col-span-4 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden shadow-sm">
-          <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center gap-2">
-            <Activity size={14} className="text-violet-500" />
-            <h3 className="text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">
-              Dimensional Mix
-            </h3>
-          </div>
-          <div className="p-6 h-[380px]">
-            <PieChartComponent data={schemaPie} nameKey="name" dataKey="value" />
-          </div>
+        {/* DIMENSIONAL MIX PIE ENCLOSURE */}
+        <div className="lg:col-span-4">
+          <GraphEnclosure
+            title="Dimensional Mix"
+            subtitle="Composition analysis of schema architecture type distributions"
+            icon={Activity}
+            hasData={schemaPie && schemaPie.length > 0}
+          >
+            <div className="h-[350px] w-full flex items-center justify-center">
+              <PieChartComponent data={schemaPie} nameKey="name" dataKey="value" />
+            </div>
+          </GraphEnclosure>
         </div>
+
       </div>
 
       {/* ================================================= */}
-      {/* 3. RELATIONSHIP STRENGTH SCATTER */}
+      {/* 3. RELATIONSHIP STRENGTH SCATTER ENCLOSURE */}
       {/* ================================================= */}
-      <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden shadow-sm">
-        <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center gap-2">
-          <Binary size={14} className="text-emerald-500" />
-          <h3 className="text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">
-            Linear Association Coefficients (Pearson's r)
-          </h3>
+      <GraphEnclosure
+        title="Linear Association Coefficients (Pearson's r)"
+        subtitle="Bivariate correlation magnitude index mappings across paired columns"
+        icon={Binary}
+        hasData={correlationData && correlationData.length > 0}
+      >
+        <div className="h-[400px] bg-slate-950/20 w-full overflow-hidden">
+          <ScatterChartComponent data={correlationData} xKey="x" yKey="y" color="#34d399" />
         </div>
-        <div className="p-6 h-[400px]">
-          <ScatterChartComponent data={correlationData} xKey="x" yKey="y" color="#10b981" />
-        </div>
-      </div>
+      </GraphEnclosure>
 
       {/* ================================================= */}
       {/* 4. HIGH-DENSITY STATISTICS MATRIX */}
       {/* ================================================= */}
-      <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden shadow-xl">
-        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-900 dark:bg-slate-900 text-white">
-          <div className="flex items-center gap-2">
-            <TableIcon size={16} className="text-indigo-400" />
-            <h3 className="text-xs font-black uppercase tracking-[0.15em]">
-              Descriptive Statistics Laboratory
+      <div className="bg-[#0f172a] border-2 border-slate-800/80 rounded-xl shadow-2xl overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-slate-900 flex items-center justify-between bg-[#0b1329] text-slate-100">
+          <div className="flex items-center gap-2.5">
+            <TableIcon size={14} className="text-indigo-400" />
+            <h3 className="text-xs font-bold uppercase tracking-wider font-mono">
+              // Descriptive Statistics Laboratory
             </h3>
           </div>
-          <div className="text-[10px] font-mono text-slate-400">σ-Threshold: Alpha 0.05</div>
+          <div className="text-[10px] font-mono font-medium bg-slate-950 text-slate-400 px-2 py-0.5 rounded border border-slate-900">
+            σ-Threshold: Alpha 0.05
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-[11px] border-collapse leading-tight">
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 uppercase tracking-tighter border-b border-slate-200 dark:border-slate-800">
-                <th className="p-4 text-left font-black border-r border-slate-100 dark:border-slate-800">Feature Variable</th>
-                <th className="p-4 text-right font-black">Mean (μ)</th>
-                <th className="p-4 text-right font-black">Median (M)</th>
-                <th className="p-4 text-right font-black">Std Dev (σ)</th>
-                <th className="p-4 text-right font-black">Min</th>
-                <th className="p-4 text-right font-black">Max</th>
-                <th className="p-4 text-right font-black">Skewness (γ₁)</th>
+              <tr className="bg-[#0f172a] text-slate-400 uppercase text-[9px] font-bold tracking-wider border-b border-slate-900">
+                <th className="px-6 py-3.5 font-bold border-r border-slate-900 last:border-0">Feature Variable</th>
+                <th className="px-6 py-3.5 font-bold text-right border-r border-slate-900 last:border-0">Mean (μ)</th>
+                <th className="px-6 py-3.5 font-bold text-right border-r border-slate-900 last:border-0">Median (M)</th>
+                <th className="px-6 py-3.5 font-bold text-right border-r border-slate-900 last:border-0">Std Dev (σ)</th>
+                <th className="px-6 py-3.5 font-bold text-right border-r border-slate-900 last:border-0">Min</th>
+                <th className="px-6 py-3.5 font-bold text-right border-r border-slate-900 last:border-0">Max</th>
+                <th className="px-6 py-3.5 font-bold text-right last:border-0">Skewness (γ₁)</th>
               </tr>
             </thead>
-            <tbody className="font-mono">
+            <tbody className="divide-y divide-slate-900/60 bg-[#0f172a]/20 font-mono text-[11px]">
               {numerical.map((item, idx) => (
-                <tr key={idx} className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-900/30 transition-colors">
-                  <td className="p-4 font-sans font-bold text-slate-900 dark:text-slate-100 border-r border-slate-50 dark:border-slate-800/50 italic">
+                <tr key={idx} className="hover:bg-slate-900/40 transition-colors border-b border-slate-900/40">
+                  <td className="px-6 py-2.5 font-sans font-bold text-slate-100 border-r border-slate-900/40 last:border-0 italic">
                     {item.column}
                   </td>
-                  <td className="p-4 text-right text-indigo-600 dark:text-indigo-400 font-bold">{item.mean.toFixed(3)}</td>
-                  <td className="p-4 text-right">{item.median.toFixed(3)}</td>
-                  <td className="p-4 text-right text-slate-500">{item.std.toFixed(3)}</td>
-                  <td className="p-4 text-right">{item.min.toFixed(2)}</td>
-                  <td className="p-4 text-right">{item.max.toFixed(2)}</td>
-                  <td className={`p-4 text-right font-bold ${Math.abs(item.skew) > 1 ? 'text-amber-600' : 'text-slate-400'}`}>
+                  <td className="px-6 py-2.5 text-right text-indigo-400 font-bold border-r border-slate-900/40 last:border-0">{item.mean.toFixed(3)}</td>
+                  <td className="px-6 py-2.5 text-right text-slate-300 border-r border-slate-900/40 last:border-0">{item.median.toFixed(3)}</td>
+                  <td className="px-6 py-2.5 text-right text-slate-400 border-r border-slate-900/40 last:border-0">{item.std.toFixed(3)}</td>
+                  <td className="px-6 py-2.5 text-right text-slate-300 border-r border-slate-900/40 last:border-0">{item.min.toFixed(2)}</td>
+                  <td className="px-6 py-2.5 text-right text-slate-300 border-r border-slate-900/40 last:border-0">{item.max.toFixed(2)}</td>
+                  <td className={`px-6 py-2.5 text-right font-bold last:border-0 ${Math.abs(item.skew) > 1 ? 'text-amber-400 bg-amber-500/5' : 'text-slate-500'}`}>
                     {item.skew.toFixed(3)}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
-        <div className="px-6 py-2 bg-slate-50 dark:bg-slate-900/80 border-t border-slate-200 dark:border-slate-800">
-          <p className="text-[9px] font-mono text-slate-400 uppercase tracking-widest text-center">
-            Automated Feature Engineering Engine v2.4 • Batch Analysis Complete
-          </p>
         </div>
       </div>
     </div>

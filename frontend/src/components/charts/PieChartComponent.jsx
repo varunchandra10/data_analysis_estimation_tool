@@ -8,32 +8,29 @@ import {
   Cell
 } from "recharts";
 
-// Professional divergent & sequential palette for analytical clarity
-const COLORS = [
-  "#6366f1", "#4f46e5", "#4338ca", "#3730a3", 
-  "#312e81", "#1e1b4b", "#4338ca", "#5850ec"
-];
+// HIGH DIFFERENTIABILITY PALETTE
+// index 0 = Missing Data (Rose/Crimson Warning)
+// index 1 = Available Data (Clean Slate/Indigo Core)
+const PALETTE_MAPPING = {
+  "Missing": "#f43f5e",   // Rose 500
+  "Available": "#3b82f6"  // Blue 500
+};
 
-/**
- * Technical Tooltip
- * High-density information display using monospaced fonts for precision.
- */
 const CustomTooltip = ({ active, payload }) => {
   if (active && payload && payload.length) {
-    const data = payload[0].payload;
     return (
-      <div className="bg-slate-900 border border-slate-700 shadow-2xl p-3 rounded-md backdrop-blur-md opacity-95">
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 border-b border-slate-800 pb-1">
+      <div className="bg-slate-950 border border-slate-800 shadow-2xl p-3 rounded-sm backdrop-blur-md opacity-95 font-mono">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2 border-b border-slate-900 pb-1">
           Categorical Audit
         </p>
         <div className="space-y-1.5">
           <div className="flex justify-between gap-8">
-            <span className="text-xs text-slate-400 font-medium">Dimension:</span>
-            <span className="text-xs font-bold text-white tracking-tight">{payload[0].name}</span>
+            <span className="text-[11px] text-slate-400 font-sans font-medium">Dimension:</span>
+            <span className="text-xs font-bold text-slate-200 tracking-tight">{payload[0].name}</span>
           </div>
           <div className="flex justify-between gap-8">
-            <span className="text-xs text-slate-400 font-medium">Magnitude:</span>
-            <span className="text-xs font-mono font-bold text-indigo-400">
+            <span className="text-[11px] text-slate-400 font-sans font-medium">Magnitude:</span>
+            <span className="text-xs font-bold font-mono text-slate-200">
               {payload[0].value.toLocaleString()}
             </span>
           </div>
@@ -48,8 +45,7 @@ const PieChartComponent = ({ data, nameKey = "label", dataKey = "count" }) => {
   if (!data || data.length === 0) return null;
 
   return (
-    /* Removed fixed h-96, p-4, background, and rounded corners to make it fully dynamic */
-    <div className="w-full h-full min-h-[250px] relative transition-all duration-300">
+    <div className="w-full h-full min-h-[250px] relative transition-all duration-300 flex flex-col justify-start items-start">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
@@ -57,37 +53,44 @@ const PieChartComponent = ({ data, nameKey = "label", dataKey = "count" }) => {
             nameKey={nameKey}
             dataKey={dataKey}
             cx="50%"
-            cy="50%"
-            innerRadius="65%"  // Percentage-based for dynamic container scaling
+            cy="45%" 
+            innerRadius="65%"  
             outerRadius="90%"
-            paddingAngle={2}    // Reduced for a more "continuous" statistical look
-            stroke="#ffffff"    // Subtle separation for overlapping dark modes
-            strokeWidth={1}
+            paddingAngle={2} 
+            stroke="#0f172a"   
+            strokeWidth={2}
             animationBegin={0}
-            animationDuration={800}
+            animationDuration={400}
             className="outline-none"
           >
-            {data.map((entry, index) => (
-              <Cell 
-                key={`cell-${index}`} 
-                fill={COLORS[index % COLORS.length]} 
-                className="hover:saturate-150 transition-all cursor-crosshair outline-none"
-              />
-            ))}
+            {data.map((entry, index) => {
+              const segmentName = entry[nameKey];
+              // Fallback to palette sequence if name matching isn't explicitly found
+              const sliceColor = PALETTE_MAPPING[segmentName] || (index === 0 ? "#f43f5e" : "#3b82f6");
+              
+              return (
+                <Cell 
+                  key={`cell-${index}`} 
+                  fill={sliceColor} 
+                  className="hover:opacity-90 transition-all cursor-crosshair outline-none"
+                />
+              );
+            })}
           </Pie>
 
           <Tooltip 
             content={<CustomTooltip />} 
-            animationDuration={200}
+            animationDuration={150}
           />
           
           <Legend 
             verticalAlign="bottom" 
             align="center"
-            iconType="rect" // More professional "block" style than circle
-            iconSize={10}
+            iconType="rect" 
+            iconSize={8}
+            wrapperStyle={{ bottom: 0, left: 0, width: '100%' }}
             formatter={(value) => (
-              <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.15em] ml-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 font-sans">
                 {value}
               </span>
             )}

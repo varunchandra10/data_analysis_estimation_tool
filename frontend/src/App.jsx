@@ -1,33 +1,23 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  LayoutDashboard, Droplets, AlertTriangle, Copy, Settings,
-  History, LogOut, ChevronRight, ShieldCheck, Scale,
-  BarChart3, Sparkles, Menu, X, Database, Activity, FileSpreadsheet
+  Droplets, AlertTriangle, Copy, Settings,
+  History, ChevronRight, ShieldCheck, Scale,
+  BarChart3, Database, FileSpreadsheet, Cpu, FileText
 } from 'lucide-react';
 
-import MissingValuePanel from './components/MissingValuePanel';
-import OutlierPanel from './components/OutlierPanel';
+import MissingValuePanel from './components/cleaning/Imputation/MissingValuePanel';
+import OutlierPanel from './components/cleaning/outlier_detection/OutlierPanel';
 import DuplicatePanel from './components/DuplicatePanel';
-import RuleValidationPanel from './components/ValidationPanel';
-import CleaningLogsPanel from './components/CleaningLogsPanel';
-import WeightEstimationPanel from './components/WeightEstimationPanel';
+import RuleValidationPanel from './components/cleaning/rule_validation/ValidationPanel';
+import CleaningLogsPanel from './components/cleaning/rule_validation/CleaningLogsPanel';
+import WeightEstimationPanel from './components/cleaning/weight_estimation/WeightEstimationPanel';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import AIEngine from './components/AIEngine';
 import VersioningPanel from './components/VersioningPanel';
-import { BrowserRouter as Router, Routes, Route, NavLink, Navigate } from 'react-router-dom';
-
-import Mainpage from './pages/Mainpage';
-import IngestionPage from './pages/IngestionPage';
-import DatasetExplorer from './pages/DatasetExplorer';
-import NullAnalysis from './pages/NullAnalysis';
-import WholeDatasetPage from './pages/WholeDatasetPage';
-import AnomalyDetection from './pages/AnomalyDetection';
-import Deduping from './pages/Deduping';
-import LogicValidation from './pages/LogicValidation';
-import WeightingEngine from './pages/WeightingEngine';
-import StatisticalEngine from './pages/StatisticalEngine';
-import VersionControl from './pages/VersionControl';
-import AuditTrail from './pages/AuditTrail';
+import Navbar from './components/UI/Navbar';
+import Sidebar from './components/UI/Sidebar';
+import { BrowserRouter as Router } from 'react-router-dom';
+import AllRoutes from './allroutes';
 
 import './App.css';
 
@@ -100,6 +90,7 @@ function App() {
     { id: 'estimation', label: 'Weighting Engine', icon: Scale, path: '/weighting-engine' },
     { id: 'analytics', label: 'Statistical Insights', icon: BarChart3, path: '/statistical-engine' },
     { id: 'versioning', label: 'Version Control', icon: FileSpreadsheet, path: '/version-control' },
+    { id: 'reports', label: 'Report Center', icon: FileText, path: '/report-center' },
     { id: 'logs', label: 'Audit Trail', icon: History, path: '/audit-trail' }
   ];
 
@@ -172,7 +163,7 @@ function App() {
 
   return (
     <Router>
-      <div className="min-h-screen overflow-x-hidden bg-[#f8fafc] dark:bg-[#020617] text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-indigo-100 dark:selection:bg-indigo-900/30">
+      <div className="h-screen overflow-hidden bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-blue-500/30 antialiased">
 
       {datasetData && (
         <AIEngine
@@ -184,232 +175,115 @@ function App() {
         />
       )}
 
-      {/* HEADER: Refined with tighter padding and sharper borders */}
+      {/* HEADER BLOCK */}
       {datasetData && (
-        <header className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 sticky top-0 z-[60] w-full shadow-sm">
-          <div className="max-w-[1800px] mx-auto px-4 py-2.5 flex items-center justify-between">
-
-          <div className="flex items-center gap-4">
-            {datasetData && (
-              <button
-                onClick={() => setIsMobileMenuOpen(true)}
-                className="lg:hidden p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
-              >
-                <Menu size={18} />
-              </button>
-            )}
-
-            {/* BRANDING: More minimalist and corporate */}
-            <div className="flex items-center gap-3 border-r border-slate-200 dark:border-slate-800 pr-4">
-              <div className="w-8 h-8 rounded bg-slate-900 dark:bg-white flex items-center justify-center text-white dark:text-slate-900">
-                <Activity size={18} />
-              </div>
-              <div>
-                <h1 className="text-sm font-bold tracking-tight uppercase leading-none">DAET <span className="font-light text-slate-500">Workbench</span></h1>
-                <span className="text-[10px] text-slate-400 font-medium uppercase tracking-[0.2em]">v2.4.0-Stable</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {datasetData && (
-              <div className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
-                <div className="flex items-center gap-2">
-                  <Sparkles size={14} className={aiLoading ? "text-indigo-500 animate-pulse" : "text-slate-400"} />
-                  <span className="text-[11px] font-mono font-medium text-slate-600 dark:text-slate-400 uppercase tracking-tight">
-                    {aiLoading ? 'Neural Engine Active' : 'Model Ready'}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            <div className="h-6 w-px bg-slate-200 dark:border-slate-800 mx-1" />
-
-            <button
-              onClick={handleReset}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:hover:bg-slate-900"
-            >
-              <LogOut size={16} />
-              Terminate
-            </button>
-          </div>
-          </div>
-        </header>
+        <Navbar
+          datasetData={datasetData}
+          aiLoading={aiLoading}
+          onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
+          onReset={handleReset}
+          aiResults={aiResults}
+          validationResult={validationResult}
+          estimationResult={estimationResult}
+          outlierResult={outlierResult}
+          duplicateResult={duplicateResult}
+          analyticsViewData={analyticsViewData}
+        />
       )}
 
-      <main className="flex-1 min-h-0 flex flex-col w-full max-w-[1800px] mx-auto overflow-visible">
-
+      {/* SYSTEM MAIN CONTROLLER SCOPE */}
+      <main className="flex-1 min-h-0 flex flex-col w-full max-w-[1800px] mx-auto overflow-hidden">
         {!datasetData ? (
-          <Routes>
-            <Route path="/" element={<Mainpage />} />
-            <Route
-              path="/ingestion"
-              element={
-                <IngestionPage
-                  onUploadSuccess={(data) => {
-                    setDatasetData(data);
-                    setAnalyticsViewData(null);
-                    setActiveTab('overview');
-                    try {
-                      window.history.pushState({}, '', '/dataset-explorer');
-                    } catch (e) {
-                      window.location.hash = '/dataset-explorer';
-                    }
-                    setAIResults(null);
-                    setAIResultsSourcePath(null);
-                  }}
-                />
-              }
-            />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+          <AllRoutes
+            datasetData={datasetData}
+            setDatasetData={setDatasetData}
+            aiResults={aiResults}
+            aiResultsSourcePath={aiResultsSourcePath}
+            setAIResults={setAIResults}
+            setAIResultsSourcePath={setAIResultsSourcePath}
+            setActiveTab={setActiveTab}
+            setIsMobileMenuOpen={setIsMobileMenuOpen}
+            setAnalyticsViewData={setAnalyticsViewData}
+            analyticsViewData={analyticsViewData}
+            validationResult={validationResult}
+            estimationResult={estimationResult}
+            outlierResult={outlierResult}
+            duplicateResult={duplicateResult}
+            activeAnalyticsData={activeAnalyticsData}
+            missingValueInsights={missingValueInsights}
+            outlierInsights={outlierInsights}
+            validationInsights={validationInsights}
+          />
         ) : (
-          <div className="flex flex-col lg:flex-row flex-1 min-h-0 overflow-hidden">
+          <div className="flex flex-col lg:flex-row flex-1 h-full overflow-hidden relative">
+            <Sidebar
+              datasetData={datasetData}
+              navItems={navItems}
+              activeTab={activeTab}
+              onTabChange={handleTabChange}
+              isMobileMenuOpen={isMobileMenuOpen}
+              setIsMobileMenuOpen={setIsMobileMenuOpen}
+            />
 
-            {/* DESKTOP SIDEBAR: Industrial look */}
-            <aside className="hidden lg:flex w-64 h-full border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4 flex flex-col gap-6 shrink-0 overflow-y-auto">
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 px-2">Analysis Pipeline</p>
-                <nav className="flex flex-col gap-0.5">
-                  {navItems.map((item) => (
-                    <NavLink
-                      key={item.id}
-                      to={item.path}
-                      onClick={() => handleTabChange(item.id)}
-                      className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded transition-all text-sm font-medium border-l-2 ${isActive
-                        ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 border-indigo-600'
-                        : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-900 border-transparent'
-                      }`}
-                    >
-                      <item.icon size={16} strokeWidth={2} />
-                      {item.label}
-                    </NavLink>
-                  ))}
-                </nav>
-              </div>
+            {/* MAIN CORE WORKSPACE BOARD */}
+            <section className="flex-1 h-full min-h-0 overflow-y-auto bg-slate-950 border-slate-900/40">
+              <div className="p-5 lg:p-6 max-w-[1500px]">
 
-              <div className="mt-auto">
-                <div className="p-3 rounded bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-                    <p className="text-[10px] font-mono font-bold text-slate-400 uppercase">System Status</p>
-                  </div>
-                  <p className="text-[11px] font-medium text-slate-700 dark:text-slate-300 truncate font-mono">{datasetData.metadata.filename}</p>
-                </div>
-              </div>
-            </aside>
-
-            {/* MAIN WORKSPACE */}
-            <section className="flex-1 min-h-0 overflow-y-auto bg-white dark:bg-[#020617] custom-scrollbar">
-              <div className="p-6 lg:p-8 max-w-[1400px]">
-
-                <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4 border-b border-slate-100 dark:border-slate-800 pb-6">
+                {/* HIGH-DENSITY RUNTIME METRIC CONTROLS */}
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-6 gap-4 border-b border-slate-900 pb-4 font-mono select-none">
                   <div>
-                    <div className="flex items-center gap-2 text-slate-400 mb-1">
-                      <span className="text-[10px] font-mono uppercase tracking-tighter">Workspace</span>
-                      <ChevronRight size={10} />
-                      <span className="text-[10px] font-mono uppercase tracking-tighter text-indigo-500">
+                    <div className="flex items-center gap-1.5 text-slate-500 mb-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider">WORKSPACE</span>
+                      <ChevronRight size={11} className="text-slate-700" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-blue-400">
                         {activeTab}
                       </span>
                     </div>
-                    <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white capitalize">
+                    <h2 className="text-base font-bold tracking-tight text-white uppercase">
                       {navItems.find(n => n.id === activeTab)?.label}
                     </h2>
                   </div>
 
-                  {/* METRIC CHIPS: Quick context for statisticians */}
-                  <div className="flex gap-4">
-                    <div className="px-3 py-1 border-r border-slate-200 dark:border-slate-800 text-right">
-                      <p className="text-[10px] text-slate-400 uppercase font-bold">Samples</p>
-                      <p className="text-sm font-mono font-bold">{(activeTab === 'analytics' ? activeAnalyticsData : datasetData)?.metadata?.rows?.toLocaleString() || '0'}</p>
+                  {/* RIGID MATHEMATICAL STAT METADATA CHIPS */}
+                  <div className="flex gap-1 bg-slate-950 border border-slate-900 p-1 rounded-sm">
+                    <div className="px-3 py-1 text-right bg-slate-900/40 border-r border-slate-900">
+                      <p className="text-[9px] text-slate-500 uppercase font-bold tracking-wider">SAMPLES</p>
+                      <p className="text-xs font-bold text-slate-200">
+                        {(activeTab === 'analytics' ? activeAnalyticsData : datasetData)?.metadata?.rows?.toLocaleString() || '0'}
+                      </p>
                     </div>
-                    <div className="px-3 py-1 text-right">
-                      <p className="text-[10px] text-slate-400 uppercase font-bold">Variables</p>
-                      <p className="text-sm font-mono font-bold">{Object.keys((activeTab === 'analytics' ? activeAnalyticsData : datasetData)?.preview?.[0] || {}).length}</p>
+                    <div className="px-3 py-1 text-right bg-slate-900/40">
+                      <p className="text-[9px] text-slate-500 uppercase font-bold tracking-wider">VARIABLES</p>
+                      <p className="text-xs font-bold text-slate-200">
+                        {Object.keys((activeTab === 'analytics' ? activeAnalyticsData : datasetData)?.preview?.[0] || {}).length}
+                      </p>
                     </div>
                   </div>
                 </div>
 
-                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                  <Routes>
-                    <Route path="/ingestion" element={<Navigate to="/dataset-explorer" replace />} />
-                    <Route path="/" element={<DatasetExplorer datasetData={datasetData} aiResults={aiResults} />} />
-                    <Route path="/dataset-explorer" element={<DatasetExplorer datasetData={datasetData} aiResults={aiResults} />} />
-                    <Route path="/whole-dataset" element={<WholeDatasetPage datasetData={datasetData} onBack={() => {
-                      handleTabChange('overview');
-                      window.history.pushState({}, '', '/dataset-explorer');
-                    }} />} />
-
-                    <Route path="/null-analysis" element={<NullAnalysis data={datasetData} aiInsights={missingValueInsights} onCleaningComplete={(result) => {
-                      setAIResults(null);
-                      setAIResultsSourcePath(null);
-                      setAnalyticsViewData(null);
-                      setDatasetData(prev => ({
-                        ...prev,
-                        preview: result.preview,
-                        metadata: {
-                          ...prev.metadata,
-                          file_path: result.file_path,
-                          dataset_name: prev.metadata.dataset_name || prev.metadata.filename,
-                          null_counts: result.null_counts
-                        }
-                      }));
-                    }} />} />
-
-                    <Route path="/anomaly-detection" element={<AnomalyDetection data={datasetData} aiInsights={outlierInsights} onResult={(res) => {
-                      setOutlierResult(res);
-                      if (res?.file_path) {
-                        setAnalyticsViewData(null);
-                        setDatasetData(prev => ({
-                          ...prev,
-                          preview: res.preview || prev.preview,
-                          metadata: { ...prev.metadata, file_path: res.file_path }
-                        }));
-                      }
-                    }} />} />
-
-                    <Route path="/deduping" element={<Deduping data={datasetData} aiInsights={aiResults?.duplicate_insights || []} onProcessComplete={(result) => {
-                      setDuplicateResult(result);
-                      setAIResults(null);
-                      setAIResultsSourcePath(null);
-                      setAnalyticsViewData(null);
-                      setDatasetData(prev => ({
-                        ...prev,
-                        preview: result.preview,
-                        metadata: {
-                          ...prev.metadata,
-                          file_path: result.file_path,
-                          rows: result.final_rows
-                        }
-                      }));
-                    }} />} />
-
-                    <Route path="/logic-validation" element={<LogicValidation data={datasetData} aiInsights={validationInsights} onValidationComplete={(res) => {
-                      setValidationResult(res);
-                      if (res?.file_path) {
-                        setAIResults(null);
-                        setAIResultsSourcePath(null);
-                        setAnalyticsViewData(null);
-                        setDatasetData(prev => ({
-                          ...prev,
-                          preview: res.preview || prev.preview,
-                          metadata: { ...prev.metadata, file_path: res.file_path }
-                        }));
-                      }
-                    }} />} />
-
-                    <Route path="/weighting-engine" element={<WeightingEngine data={datasetData} aiInsights={aiResults?.weight_estimation_insights || []} onEstimationComplete={(res) => setEstimationResult(res)} />} />
-
-                    <Route path="/statistical-engine" element={<StatisticalEngine datasetData={activeAnalyticsData} validationResult={validationResult} estimationResult={estimationResult} outlierResult={outlierResult} duplicateResult={duplicateResult} aiResults={aiResults} />} />
-
-                    <Route path="/version-control" element={<VersionControl data={datasetData} onViewAnalytics={(analyticsDataset) => {
-                      setAnalyticsViewData(analyticsDataset);
-                      setActiveTab('analytics');
-                      setIsMobileMenuOpen(false);
-                    }} />} />
-
-                    <Route path="/audit-trail" element={<AuditTrail data={datasetData} />} />
-                  </Routes>
+                {/* APP PIPELINE ROUTER TARGET BLOCK */}
+                <div className="animate-in fade-in slide-in-from-bottom-1 duration-200 min-h-0">
+                  <AllRoutes
+                    datasetData={datasetData}
+                    setDatasetData={setDatasetData}
+                    aiResults={aiResults}
+                    aiResultsSourcePath={aiResultsSourcePath}
+                    setAIResults={setAIResults}
+                    setAIResultsSourcePath={setAIResultsSourcePath}
+                    setActiveTab={setActiveTab}
+                    setIsMobileMenuOpen={setIsMobileMenuOpen}
+                    setAnalyticsViewData={setAnalyticsViewData}
+                    analyticsViewData={analyticsViewData}
+                    validationResult={validationResult}
+                    estimationResult={estimationResult}
+                    setEstimationResult={setEstimationResult}
+                    outlierResult={outlierResult}
+                    duplicateResult={duplicateResult}
+                    activeAnalyticsData={activeAnalyticsData}
+                    missingValueInsights={missingValueInsights}
+                    outlierInsights={outlierInsights}
+                    validationInsights={validationInsights}
+                  />
                 </div>
               </div>
             </section>
@@ -417,33 +291,6 @@ function App() {
         )}
       </main>
 
-      {/* MOBILE DRAWER: Updated for consistency */}
-      {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-[100] lg:hidden">
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setIsMobileMenuOpen(false)} />
-          <aside className="fixed inset-y-0 left-0 w-[280px] bg-white dark:bg-slate-950 shadow-2xl p-6 flex flex-col gap-6 animate-in slide-in-from-left duration-300">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Navigation</h3>
-              <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
-                <X size={18} />
-              </button>
-            </div>
-            <nav className="flex flex-col gap-2">
-              {navItems.map((item) => (
-                <NavLink
-                  key={item.id}
-                  to={item.path}
-                  onClick={() => { handleTabChange(item.id); setIsMobileMenuOpen(false); }}
-                  className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded text-sm font-medium ${isActive ? 'bg-indigo-600 text-white' : 'text-slate-500'}`}
-                >
-                  <item.icon size={18} />
-                  {item.label}
-                </NavLink>
-              ))}
-            </nav>
-          </aside>
-        </div>
-      )}
       </div>
     </Router>
   );
