@@ -3,6 +3,9 @@ from datetime import datetime
 
 from utils.log_utils import log_calls
 from utils.dataset_storage import ai_cache_path, ensure_dataset_layout, resolve_dataset_name
+from core.database import SessionLocal
+from models.ai_cache_model import AICacheRef
+from models.dataset_model import Dataset
 
 # =========================================================
 # CACHE FILE PATH
@@ -57,6 +60,22 @@ def create_ai_cache(dataset_name: str):
             f,
             indent=4
         )
+
+    # create DB ref if possible
+    try:
+        db = SessionLocal()
+        # try to resolve dataset id
+        ds = db.query(Dataset).filter(Dataset.dataset_name == resolve_dataset_name(dataset_name)).first()
+        ref = AICacheRef(dataset_id=ds.id if ds else 0, cache_type='ai_cache', cache_path=str(cache_path))
+        db.add(ref)
+        db.commit()
+    except Exception:
+        pass
+    finally:
+        try:
+            db.close()
+        except Exception:
+            pass
 
     return cache_data
 
@@ -204,6 +223,21 @@ def invalidate_ai_cache(dataset_name: str):
         cache_path.unlink()
 
     # RECREATE CLEAN CACHE
+    # remove db refs
+    try:
+        db = SessionLocal()
+        ds = db.query(Dataset).filter(Dataset.dataset_name == resolve_dataset_name(dataset_name)).first()
+        if ds:
+            db.query(AICacheRef).filter(AICacheRef.dataset_id == ds.id).delete()
+            db.commit()
+    except Exception:
+        pass
+    finally:
+        try:
+            db.close()
+        except Exception:
+            pass
+
     return create_ai_cache(dataset_name)
 
 
@@ -215,6 +249,21 @@ def delete_ai_cache(dataset_name: str):
     if cache_path.exists():
 
         cache_path.unlink()
+
+        # remove db refs
+        try:
+            db = SessionLocal()
+            ds = db.query(Dataset).filter(Dataset.dataset_name == resolve_dataset_name(dataset_name)).first()
+            if ds:
+                db.query(AICacheRef).filter(AICacheRef.dataset_id == ds.id).delete()
+                db.commit()
+        except Exception:
+            pass
+        finally:
+            try:
+                db.close()
+            except Exception:
+                pass
 
         return True
 

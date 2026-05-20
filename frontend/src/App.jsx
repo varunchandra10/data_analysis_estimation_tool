@@ -18,67 +18,28 @@ import Navbar from './components/UI/Navbar';
 import Sidebar from './components/UI/Sidebar';
 import { BrowserRouter as Router } from 'react-router-dom';
 import AllRoutes from './allroutes';
+import { useDAETSession } from './utils/useDAETSession';
 
 import './App.css';
 
 function App() {
-  const [datasetData, setDatasetData] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview');
+  const {
+    datasetData, setDatasetData,
+    activeTab, setActiveTab,
+    analyticsViewData, setAnalyticsViewData,
+    aiResults, setAIResults,
+    aiResultsSourcePath, setAIResultsSourcePath,
+    resetSession
+  } = useDAETSession();
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [analyticsViewData, setAnalyticsViewData] = useState(null);
 
   const [validationResult, setValidationResult] = useState(null);
   const [estimationResult, setEstimationResult] = useState(null);
   const [outlierResult, setOutlierResult] = useState(null);
   const [duplicateResult, setDuplicateResult] = useState(null);
 
-  const [aiResults, setAIResults] = useState(null);
-  const [aiResultsSourcePath, setAIResultsSourcePath] = useState(null);
   const [aiLoading, setAILoading] = useState(false);
-
-  const storageKey = 'daet_frontend_state_v1';
-
-  useEffect(() => {
-    try {
-      const rawState = window.localStorage.getItem(storageKey);
-
-      if (!rawState) return;
-
-      const savedState = JSON.parse(rawState);
-
-      if (savedState.datasetData) setDatasetData(savedState.datasetData);
-      if (savedState.activeTab) setActiveTab(savedState.activeTab);
-      if (savedState.analyticsViewData) setAnalyticsViewData(savedState.analyticsViewData);
-      if (savedState.aiResults) setAIResults(savedState.aiResults);
-      if (savedState.aiResultsSourcePath) {
-        setAIResultsSourcePath(savedState.aiResultsSourcePath);
-      }
-    } catch (error) {
-      console.warn('Failed to restore DAET session:', error);
-    }
-  }, []);
-
-  useEffect(() => {
-    try {
-      if (!datasetData && !aiResults) {
-        window.localStorage.removeItem(storageKey);
-        return;
-      }
-
-      window.localStorage.setItem(
-        storageKey,
-        JSON.stringify({
-          datasetData,
-          activeTab,
-          analyticsViewData,
-          aiResults,
-          aiResultsSourcePath,
-        })
-      );
-    } catch (error) {
-      console.warn('Failed to persist DAET session:', error);
-    }
-  }, [datasetData, activeTab, analyticsViewData, aiResults, aiResultsSourcePath]);
 
   const navItems = [
     { id: 'overview', label: 'Dataset Explorer', icon: Database, path: '/dataset-explorer' },
@@ -146,17 +107,12 @@ function App() {
   };
 
   const handleReset = () => {
-    setDatasetData(null);
-    setActiveTab('overview');
     setValidationResult(null);
     setEstimationResult(null);
     setOutlierResult(null);
     setDuplicateResult(null);
-    setAIResults(null);
-    setAIResultsSourcePath(null);
-    setAnalyticsViewData(null);
     setIsMobileMenuOpen(false);
-    window.localStorage.removeItem(storageKey);
+    resetSession();
   };
 
   const activeAnalyticsData = analyticsViewData || datasetData;
@@ -206,9 +162,13 @@ function App() {
             setAnalyticsViewData={setAnalyticsViewData}
             analyticsViewData={analyticsViewData}
             validationResult={validationResult}
+            setValidationResult={setValidationResult}
             estimationResult={estimationResult}
+            setEstimationResult={setEstimationResult}
             outlierResult={outlierResult}
+            setOutlierResult={setOutlierResult}
             duplicateResult={duplicateResult}
+            setDuplicateResult={setDuplicateResult}
             activeAnalyticsData={activeAnalyticsData}
             missingValueInsights={missingValueInsights}
             outlierInsights={outlierInsights}
@@ -275,10 +235,13 @@ function App() {
                     setAnalyticsViewData={setAnalyticsViewData}
                     analyticsViewData={analyticsViewData}
                     validationResult={validationResult}
+                    setValidationResult={setValidationResult}
                     estimationResult={estimationResult}
                     setEstimationResult={setEstimationResult}
                     outlierResult={outlierResult}
+                    setOutlierResult={setOutlierResult}
                     duplicateResult={duplicateResult}
+                    setDuplicateResult={setDuplicateResult}
                     activeAnalyticsData={activeAnalyticsData}
                     missingValueInsights={missingValueInsights}
                     outlierInsights={outlierInsights}

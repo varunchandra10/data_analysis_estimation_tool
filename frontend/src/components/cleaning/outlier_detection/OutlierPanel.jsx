@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { apiUrl } from "../../../api/config";
 import { 
   AlertTriangle, 
   BarChart3, 
@@ -42,7 +43,7 @@ const OutlierPanel = ({ data, aiInsights = [] }) => {
     if (!selectedColumn) return;
     setLoading(true);
     try {
-      const response = await axios.post("http://localhost:8000/api/outliers/detect", {
+      const response = await axios.post(apiUrl("/api/outliers/detect"), {
         file_path: metadata.file_path,
         column: selectedColumn,
         method,
@@ -65,7 +66,7 @@ const OutlierPanel = ({ data, aiInsights = [] }) => {
     if (!result) return;
     setApplyLoading(true);
     try {
-      const response = await axios.post("http://localhost:8000/api/outliers/apply", {
+      const response = await axios.post(apiUrl("/api/outliers/apply"), {
         file_path: metadata.file_path,
         column: selectedColumn,
         method: method,

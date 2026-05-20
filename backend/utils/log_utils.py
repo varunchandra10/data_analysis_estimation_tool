@@ -165,3 +165,9 @@ def save_cleaning_log(
             f,
             indent=4
         )
+    # attempt to persist audit log to DB
+    try:
+        from services.audit_log_service import record_audit_log
+        record_audit_log(dataset_name=dataset_name, action=operation, details={'rows_affected': rows_affected, **(details or {})})
+    except Exception:
+        pass

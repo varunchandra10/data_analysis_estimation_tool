@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { apiUrl } from "../api/config";
 import { 
   Copy, Trash2, CheckCircle2, AlertCircle, BarChart3, 
   PieChart as PieIcon, Database, BrainCircuit, Bot, 
@@ -22,7 +23,7 @@ const DuplicatePanel = ({ data, aiInsights = [], onProcessComplete }) => {
     setLoading(true);
     try {
       const response = await axios.post(
-        "http://localhost:8000/api/duplicates/process",
+        apiUrl("/api/duplicates/process"),
         { file_path: metadata.file_path, strategy }
       );
       setResult(response.data);

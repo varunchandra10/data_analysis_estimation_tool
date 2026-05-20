@@ -1,5 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { apiUrl } from '../api/config';
 import { 
   FolderKey, 
   FileSpreadsheet, 
@@ -14,10 +15,9 @@ import {
   Binary,
   ChevronRight,
   Database,
-  ArrowRight
+  ArrowRight,
+  RotateCcw
 } from "lucide-react";
-
-const API_BASE = 'http://localhost:8000';
 
 const STAGE_LABELS = {
   raw: 'Raw',
@@ -65,7 +65,7 @@ function VersioningPanel({ data, onViewAnalytics, onRedirectToViewer }) {
   const fetchDatasets = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE}/api/versioning/datasets`);
+      const response = await axios.get(apiUrl('/api/versioning/datasets'));
       const items = response.data?.datasets || [];
       setDatasets(items);
       setOutput(response.data);
@@ -89,7 +89,7 @@ function VersioningPanel({ data, onViewAnalytics, onRedirectToViewer }) {
     if (!datasetName) return;
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE}/api/versioning/datasets/${encodeURIComponent(datasetName)}`);
+      const response = await axios.get(apiUrl(`/api/versioning/datasets/${encodeURIComponent(datasetName)}`));
       const files = response.data?.files || [];
       const orderedFiles = [...files].sort((left, right) => {
         const leftStage = left.stage || left.file_name.split('_', 1)[0];
@@ -130,7 +130,7 @@ function VersioningPanel({ data, onViewAnalytics, onRedirectToViewer }) {
     setShowDeleteModal(false);
     setLoading(true);
     try {
-      const response = await axios.post(`${API_BASE}/api/versioning/datasets/${encodeURIComponent(selectedDataset)}/files/${encodeURIComponent(fileName)}/delete`, {});
+      const response = await axios.post(apiUrl(`/api/versioning/datasets/${encodeURIComponent(selectedDataset)}/files/${encodeURIComponent(fileName)}/delete`), {});
       await fetchFiles(selectedDataset);
       setOutput(response.data);
     } catch (error) {
@@ -169,7 +169,7 @@ function VersioningPanel({ data, onViewAnalytics, onRedirectToViewer }) {
       if (mode === 'dataset_viewer') {
         const targetFilePath = selectedFilePath || datasetFiles.find((file) => file.file_name === selectedFile)?.file_path || '';
         const previewResponse = await axios.get(
-          `${API_BASE}/api/versioning/datasets/${encodeURIComponent(selectedDataset)}/files/${encodeURIComponent(selectedFile)}/preview`
+          apiUrl(`/api/versioning/datasets/${encodeURIComponent(selectedDataset)}/files/${encodeURIComponent(selectedFile)}/preview`)
         );
 
         const comprehensiveDatasetPayload = {
@@ -193,12 +193,12 @@ function VersioningPanel({ data, onViewAnalytics, onRedirectToViewer }) {
         const filePathForAnalytics = selectedFilePath || datasetFiles.find((file) => file.file_name === selectedFile)?.file_path || '';
         const [previewResponse, analyticsResponse, statsResponse] = await Promise.all([
           axios.get(
-            `${API_BASE}/api/versioning/datasets/${encodeURIComponent(selectedDataset)}/files/${encodeURIComponent(selectedFile)}/preview`
+            apiUrl(`/api/versioning/datasets/${encodeURIComponent(selectedDataset)}/files/${encodeURIComponent(selectedFile)}/preview`)
           ),
           axios.get(
-            `${API_BASE}/api/versioning/datasets/${encodeURIComponent(selectedDataset)}/files/${encodeURIComponent(selectedFile)}/analytics`
+            apiUrl(`/api/versioning/datasets/${encodeURIComponent(selectedDataset)}/files/${encodeURIComponent(selectedFile)}/analytics`)
           ),
-          axios.get(`${API_BASE}/api/statistics/profile`, {
+          axios.post(apiUrl('/api/statistics/profile'), {
             file_path: filePathForAnalytics,
           }),
         ]);
@@ -228,7 +228,7 @@ function VersioningPanel({ data, onViewAnalytics, onRedirectToViewer }) {
       }
 
       const response = await axios.get(
-        `${API_BASE}/api/versioning/datasets/${encodeURIComponent(selectedDataset)}/files/${encodeURIComponent(selectedFile)}/${mode}`
+        apiUrl(`/api/versioning/datasets/${encodeURIComponent(selectedDataset)}/files/${encodeURIComponent(selectedFile)}/${mode}`)
       );
       setOutput(response.data);
       if (response.data?.file_path) {
@@ -248,7 +248,28 @@ function VersioningPanel({ data, onViewAnalytics, onRedirectToViewer }) {
     if (!selectedDataset) return;
     setLoading(true);
     try {
-      const response = await axios.post(`${API_BASE}/api/versioning/datasets/${encodeURIComponent(selectedDataset)}/compress`, {});
+      const response = await axios.post(apiUrl(`/api/versioning/datasets/${encodeURIComponent(selectedDataset)}/compress`), {});
+      setOutput(response.data);
+    } catch (error) {
+      setOutput({
+        status: 'error',
+        detail: error.response?.data?.detail || error.message,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const restoreV2Snapshot = async () => {
+    const datasetName = selectedDataset || currentDatasetName;
+    if (!datasetName) return;
+
+    setLoading(true);
+    try {
+      const response = await axios.post(apiUrl('/api/versioning/rollback'), {
+        dataset_name: datasetName,
+        version_name: 'v2_outliers',
+      });
       setOutput(response.data);
     } catch (error) {
       setOutput({
@@ -428,6 +449,13 @@ function VersioningPanel({ data, onViewAnalytics, onRedirectToViewer }) {
               onClick={() => previewSelectedFile('analytics')}
             >
               <BarChart3 size={13} /> Analytics
+            </button>
+            <button 
+              className="flex items-center gap-1.5 rounded bg-amber-600 hover:bg-amber-500 px-4 py-2 text-xs font-bold uppercase text-white tracking-wide transition-colors shadow-md font-mono disabled:opacity-40" 
+              disabled={loading || !(selectedDataset || currentDatasetName)} 
+              onClick={restoreV2Snapshot}
+            >
+              <RotateCcw size={13} /> Restore V2
             </button>
           </div>
           

@@ -9,7 +9,9 @@ from typing import Any, Iterable
 
 import pandas as pd
 
-from core.config import DATASETS_DIR
+from core.config import DATASETS_DIR, DEFAULT_PROJECT
+from services.quality_score_engine import compute_normalized_quality_score
+from utils.hash_utils import generate_sha256
 from utils.log_utils import log_calls
 from utils.file_utils import safe_json_replace
 from utils.dataset_storage import (
@@ -24,10 +26,11 @@ from utils.dataset_storage import (
     temp_root,
     versions_dir,
 )
+from services.dataset_loader import load_dataset
 
 
 STORAGE_DIR = DATASETS_DIR
-DEFAULT_PROJECT_ID = 'project_001'
+DEFAULT_PROJECT_ID = DEFAULT_PROJECT
 DATASET_FILENAME = 'dataset.csv'
 MANIFEST_SUFFIX = '_manifest.json'
 
@@ -89,6 +92,16 @@ def _timestamp() -> str:
     return datetime.utcnow().isoformat(timespec='seconds') + 'Z'
 
 
+def _resolve_dataset_name_from_source(dataset_source: Any, dataset_name: str | None = None) -> str:
+    if dataset_name:
+        return resolve_dataset_name(dataset_name)
+
+    if isinstance(dataset_source, pd.DataFrame):
+        raise ValueError('dataset_name is required when dataset_source is a DataFrame.')
+
+    return resolve_dataset_name(dataset_source)
+
+
 def _manifest_path(project_id: str, version_name: str, dataset_name: str | None = None) -> Path:
     target_dataset = dataset_name or _find_dataset_name_for_version(version_name)
     return manifests_dir(target_dataset) / f'{version_name}{MANIFEST_SUFFIX}'
@@ -139,32 +152,38 @@ def _normalize_dataset_source(dataset_source: Any, target_path: Path) -> Path:
     if source_path.is_dir():
         raise IsADirectoryError(f'Dataset source must be a file: {source_path}')
 
-    if source_path.suffix.lower() == '.csv':
-        shutil.copy2(source_path, target_path)
-        return target_path
+    target_suffix = target_path.suffix.lower()
+    source_suffix = source_path.suffix.lower()
 
-    if source_path.suffix.lower() in {'.xlsx', '.xls'}:
-        df = pd.read_excel(source_path)
-        df.to_excel(target_path, index=False)
-        return target_path
+    if target_suffix in {'.xlsx', '.xls'}:
+        if source_suffix in {'.xlsx', '.xls'}:
+            shutil.copy2(source_path, target_path)
+            return target_path
+        if source_suffix in {'.csv', '.gz'} or source_path.name.endswith('.csv.gz'):
+            df = pd.read_csv(source_path)
+            df.to_excel(target_path, index=False)
+            return target_path
+
+    if target_suffix in {'.csv', '.gz'}:
+        if source_suffix in {'.csv', '.gz'} or source_path.name.endswith('.csv.gz'):
+            shutil.copy2(source_path, target_path)
+            return target_path
+        if source_suffix in {'.xlsx', '.xls'}:
+            df = pd.read_excel(source_path)
+            df.to_csv(target_path, index=False)
+            return target_path
 
     shutil.copy2(source_path, target_path)
     return target_path
 
 
 def _read_dataset(dataset_path: Path) -> pd.DataFrame:
-    if dataset_path.suffix.lower() == '.gz' or dataset_path.name.endswith('.csv.gz'):
-        return pd.read_csv(dataset_path)
-    if dataset_path.suffix.lower() == '.csv':
-        return pd.read_csv(dataset_path)
-    if dataset_path.suffix.lower() in {'.xlsx', '.xls'}:
-        return pd.read_excel(dataset_path)
-    raise ValueError(f'Unsupported dataset format: {dataset_path.suffix}')
+    # Delegate to centralized dataset loader which handles formats and optimization
+    return load_dataset(dataset_path, optimize=True)
 
 
 def read_dataset_file(dataset_path: str | Path) -> pd.DataFrame:
-    path = Path(dataset_path)
-    return _read_dataset(path)
+    return _read_dataset(Path(dataset_path))
 
 
 def preview_dataset_file(dataset_path: str | Path, rows: int = 5) -> dict[str, Any]:
@@ -306,6 +325,227 @@ def _load_manifest(project_id: str, version_name: str) -> dict[str, Any]:
         return json.load(handle)
 
 
+def _load_manifest_optional(project_id: str, version_name: str, dataset_name: str | None = None) -> dict[str, Any]:
+    try:
+        if dataset_name:
+            manifest_path = _manifest_path(project_id, version_name, dataset_name)
+            if manifest_path.exists():
+                with open(manifest_path, 'r', encoding='utf-8') as handle:
+                    return json.load(handle)
+        return _load_manifest(project_id, version_name)
+    except FileNotFoundError:
+        return {}
+
+
+def _resolve_version_dataset_path(project_id: str, version_name: str, dataset_name: str | None = None) -> tuple[Path, str | None]:
+    candidate_datasets: list[str] = []
+    if dataset_name:
+        candidate_datasets.append(resolve_dataset_name(dataset_name))
+
+    for folder in _all_dataset_names(project_id):
+        if folder not in candidate_datasets:
+            candidate_datasets.append(folder)
+
+    for resolved_dataset_name in candidate_datasets:
+        version_path = _version_dataset_path(project_id, version_name, resolved_dataset_name)
+        if version_path.exists():
+            try:
+                load_dataset(version_path, optimize=False)
+                return version_path, resolved_dataset_name
+            except Exception:
+                pass
+
+        for extension in ('.csv', '.xlsx', '.xls', '.csv.gz'):
+            stage_path = processed_dir(resolved_dataset_name) / f'{version_name}_{resolved_dataset_name}{extension}'
+            if stage_path.exists():
+                try:
+                    load_dataset(stage_path, optimize=False)
+                    return stage_path, resolved_dataset_name
+                except Exception:
+                    continue
+
+        for path in sorted(processed_dir(resolved_dataset_name).glob(f'{version_name}_*')):
+            if path.is_file():
+                try:
+                    load_dataset(path, optimize=False)
+                    return path, resolved_dataset_name
+                except Exception:
+                    continue
+
+    raise FileNotFoundError(f'Version dataset not found: {version_name}')
+
+
+def _load_version_frame(project_id: str, version_name: str, dataset_name: str | None = None) -> tuple[pd.DataFrame, dict[str, Any], str]:
+    resolved_dataset_name = resolve_dataset_name(dataset_name) if dataset_name else None
+    dataset_path, resolved_dataset_name = _resolve_version_dataset_path(project_id, version_name, resolved_dataset_name)
+    manifest = _load_manifest_optional(project_id, version_name, resolved_dataset_name)
+    resolved_dataset_name = resolved_dataset_name or manifest.get('dataset_name') or dataset_path.parent.parent.parent.name
+    return read_dataset_file(dataset_path), manifest, resolved_dataset_name
+
+
+def _count_missing_values(df: pd.DataFrame) -> int:
+    return int(df.isna().sum().sum())
+
+
+def _count_duplicate_rows(df: pd.DataFrame) -> int:
+    return int(df.duplicated().sum())
+
+
+def _count_outlier_rows(df: pd.DataFrame) -> int:
+    numeric_df = df.select_dtypes(include='number')
+    if numeric_df.empty:
+        return 0
+
+    outlier_mask = pd.Series(False, index=df.index)
+    for column in numeric_df.columns:
+        series = numeric_df[column].dropna()
+        if series.empty:
+            continue
+        q1 = series.quantile(0.25)
+        q3 = series.quantile(0.75)
+        iqr = q3 - q1
+        if pd.isna(iqr) or iqr == 0:
+            continue
+        lower = q1 - 1.5 * iqr
+        upper = q3 + 1.5 * iqr
+        outlier_mask = outlier_mask | (numeric_df[column] < lower) | (numeric_df[column] > upper)
+
+    return int(outlier_mask.sum())
+
+
+def _validation_violation_count(manifest: dict[str, Any], df: pd.DataFrame) -> int:
+    validation = manifest.get('validation')
+    if isinstance(validation, dict):
+        return int(validation.get('total_violations', validation.get('failed_rules', 0)) or 0)
+
+    null_count = _count_missing_values(df)
+    if null_count > 0:
+        return null_count
+
+    return 0
+
+
+def _improvement(before: int, after: int) -> dict[str, Any]:
+    delta = before - after
+    percent = round((delta / before) * 100, 2) if before else (100.0 if after == 0 else 0.0)
+    return {
+        'before': before,
+        'after': after,
+        'delta': delta,
+        'reduction_percent': percent,
+        'improved': delta > 0,
+    }
+
+
+@log_calls
+def compare_versions(
+    left_version: str,
+    right_version: str,
+    project_id: str = DEFAULT_PROJECT_ID,
+    dataset_name: str | None = None,
+) -> dict[str, Any]:
+    left_df, left_manifest, resolved_dataset_name = _load_version_frame(project_id, left_version, dataset_name)
+    right_df, right_manifest, _ = _load_version_frame(project_id, right_version, resolved_dataset_name)
+
+    left_metrics = {
+        'rows': int(left_df.shape[0]),
+        'columns': int(left_df.shape[1]),
+        'missing_values': _count_missing_values(left_df),
+        'duplicate_rows': _count_duplicate_rows(left_df),
+        'outlier_rows': _count_outlier_rows(left_df),
+        'validation_violations': _validation_violation_count(left_manifest, left_df),
+    }
+    right_metrics = {
+        'rows': int(right_df.shape[0]),
+        'columns': int(right_df.shape[1]),
+        'missing_values': _count_missing_values(right_df),
+        'duplicate_rows': _count_duplicate_rows(right_df),
+        'outlier_rows': _count_outlier_rows(right_df),
+        'validation_violations': _validation_violation_count(right_manifest, right_df),
+    }
+
+    comparison = {
+        'missing_reduction': _improvement(left_metrics['missing_values'], right_metrics['missing_values']),
+        'duplicate_reduction': _improvement(left_metrics['duplicate_rows'], right_metrics['duplicate_rows']),
+        'outlier_reduction': _improvement(left_metrics['outlier_rows'], right_metrics['outlier_rows']),
+        'validation_improvement': _improvement(left_metrics['validation_violations'], right_metrics['validation_violations']),
+    }
+
+    return {
+        'status': 'success',
+        'dataset_name': resolved_dataset_name,
+        'left_version': {
+            'version': left_version,
+            'manifest_path': str(_manifest_path(project_id, left_version, resolved_dataset_name)),
+            'dataset_path': str(_version_dataset_path(project_id, left_version, resolved_dataset_name)),
+            'metadata': {
+                'timestamp': left_manifest.get('timestamp', left_manifest.get('created_at')),
+                'stage_name': left_manifest.get('stage_name'),
+                'parent': left_manifest.get('parent'),
+            },
+            'metrics': left_metrics,
+        },
+        'right_version': {
+            'version': right_version,
+            'manifest_path': str(_manifest_path(project_id, right_version, resolved_dataset_name)),
+            'dataset_path': str(_version_dataset_path(project_id, right_version, resolved_dataset_name)),
+            'metadata': {
+                'timestamp': right_manifest.get('timestamp', right_manifest.get('created_at')),
+                'stage_name': right_manifest.get('stage_name'),
+                'parent': right_manifest.get('parent'),
+            },
+            'metrics': right_metrics,
+        },
+        'comparison': comparison,
+        'summary': {
+            'compare': f'{left_version} vs {right_version}',
+            'dataset_name': resolved_dataset_name,
+            'overall_improvement': round(
+                sum(item['delta'] for item in comparison.values()),
+                2,
+            ),
+        },
+    }
+
+
+def _build_lineage(project_id: str, dataset_name: str, version_name: str, parent: str | None) -> list[str]:
+    lineage: list[str] = [version_name]
+    current_parent = parent
+
+    while current_parent:
+        lineage.insert(0, current_parent)
+        try:
+            parent_manifest = _load_manifest(project_id, current_parent)
+        except FileNotFoundError:
+            break
+        current_parent = parent_manifest.get('parent')
+
+    return lineage
+
+
+def _append_child_version(project_id: str, dataset_name: str, parent_version: str, child_version: str) -> None:
+    try:
+        parent_manifest_path = _manifest_path(project_id, parent_version, dataset_name)
+    except FileNotFoundError:
+        return
+
+    if not parent_manifest_path.exists():
+        return
+
+    with open(parent_manifest_path, 'r', encoding='utf-8') as handle:
+        parent_manifest = json.load(handle)
+
+    children = list(parent_manifest.get('children', []))
+    if child_version not in children:
+        children.append(child_version)
+
+    parent_manifest['children'] = children
+    parent_manifest['latest_child'] = child_version
+
+    with open(parent_manifest_path, 'w', encoding='utf-8') as handle:
+        json.dump(parent_manifest, handle, indent=4)
+
+
 @log_calls
 def create_project(project_id: str = DEFAULT_PROJECT_ID) -> Path:
     return _ensure_directories(project_id)
@@ -359,20 +599,31 @@ def save_manifest(
     project_id: str = DEFAULT_PROJECT_ID,
     dataset_name: str | None = None,
     parent: str | None = None,
+    stage_name: str | None = None,
     operations: Iterable[str] | None = None,
+    affected_rows: int | None = None,
     dataset_path: str | Path | None = None,
     extra: dict[str, Any] | None = None,
 ) -> Path:
     _ensure_directories(project_id)
-    resolved_dataset_name = resolve_dataset_name(dataset_name or version_name)
+    resolved_dataset_name = _resolve_dataset_name_from_source(dataset_path or version_name, dataset_name)
     ensure_dataset_layout(resolved_dataset_name)
+
+    lineage = _build_lineage(project_id, resolved_dataset_name, version_name, parent)
+    timestamp = _timestamp()
 
     manifest: dict[str, Any] = {
         'version': version_name,
         'dataset_name': resolved_dataset_name,
+        'stage_name': stage_name or version_name,
         'parent': parent,
-        'created_at': _timestamp(),
+        'children': [],
+        'created_at': timestamp,
+        'timestamp': timestamp,
         'operations': list(operations or []),
+        'affected_rows': affected_rows,
+        'lineage': lineage,
+        'lineage_depth': max(len(lineage) - 1, 0),
     }
 
     if dataset_path is not None:
@@ -383,6 +634,8 @@ def save_manifest(
                 'rows': int(df.shape[0]),
                 'columns': int(df.shape[1]),
                 'dataset_path': str(dataset_file),
+                'size_bytes': int(dataset_file.stat().st_size),
+                'hash': generate_sha256(dataset_file),
             })
 
     if extra:
@@ -392,6 +645,9 @@ def save_manifest(
     with open(manifest_path, 'w', encoding='utf-8') as handle:
         json.dump(manifest, handle, indent=4)
 
+    if parent:
+        _append_child_version(project_id, resolved_dataset_name, parent, version_name)
+
     return manifest_path
 
 
@@ -400,12 +656,15 @@ def create_version(
     dataset_source: Any,
     version_name: str,
     project_id: str = DEFAULT_PROJECT_ID,
+    dataset_name: str | None = None,
     parent: str | None = None,
+    stage_name: str | None = None,
     operations: Iterable[str] | None = None,
+    affected_rows: int | None = None,
     extra_manifest: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     _ensure_directories(project_id)
-    resolved_dataset_name = resolve_dataset_name(dataset_source)
+    resolved_dataset_name = _resolve_dataset_name_from_source(dataset_source, dataset_name)
     ensure_dataset_layout(resolved_dataset_name)
 
     version_dir = versions_dir(resolved_dataset_name) / version_name
@@ -421,7 +680,9 @@ def create_version(
         project_id=project_id,
         dataset_name=resolved_dataset_name,
         parent=parent,
+        stage_name=stage_name,
         operations=operations,
+        affected_rows=affected_rows,
         dataset_path=dataset_path,
         extra=extra_manifest,
     )
@@ -431,6 +692,9 @@ def create_version(
         'dataset_name': resolved_dataset_name,
         'version': version_name,
         'parent': parent,
+        'stage_name': stage_name or version_name,
+        'affected_rows': affected_rows,
+        'lineage': _build_lineage(project_id, resolved_dataset_name, version_name, parent),
         'version_dir': str(version_dir),
         'dataset_path': str(dataset_path),
         'manifest_path': str(manifest_path),
@@ -453,9 +717,14 @@ def list_versions(project_id: str = DEFAULT_PROJECT_ID) -> list[dict[str, Any]]:
                 'manifest_path': str(manifest_path),
                 'dataset_path': str(_version_dataset_path(project_id, version_name, dataset_name)),
                 'created_at': manifest.get('created_at'),
+                'timestamp': manifest.get('timestamp', manifest.get('created_at')),
                 'parent': manifest.get('parent'),
+                'children': manifest.get('children', []),
+                'lineage': manifest.get('lineage', [version_name]),
                 'operations': manifest.get('operations', []),
+                'affected_rows': manifest.get('affected_rows'),
                 'hash': manifest.get('hash'),
+                'stage_name': manifest.get('stage_name'),
             })
 
     versions.sort(key=lambda item: (
@@ -478,11 +747,13 @@ def get_latest_version(project_id: str = DEFAULT_PROJECT_ID) -> dict[str, Any] |
 def rollback_version(
     version_name: str,
     project_id: str = DEFAULT_PROJECT_ID,
+    dataset_name: str | None = None,
     restore_to: str | Path | None = None,
 ) -> Path:
     _ensure_directories(project_id)
 
-    dataset_path = _version_dataset_path(project_id, version_name)
+    resolved_dataset_name = resolve_dataset_name(dataset_name) if dataset_name else None
+    dataset_path = _version_dataset_path(project_id, version_name, resolved_dataset_name)
     if not dataset_path.exists():
         raise FileNotFoundError(f'Version dataset not found: {version_name}')
 
@@ -505,3 +776,60 @@ def get_manifest(project_id: str, version_name: str) -> dict[str, Any]:
 @log_calls
 def get_version_path(project_id: str, version_name: str) -> Path:
     return _version_dataset_path(project_id, version_name)
+
+
+@log_calls
+def compute_quality_score(
+    version_name: str,
+    project_id: str = DEFAULT_PROJECT_ID,
+    dataset_name: str | None = None,
+) -> dict[str, Any]:
+    """Compute deterministic normalized quality score for a specific version snapshot."""
+    df, manifest, resolved_dataset_name = _load_version_frame(project_id, version_name, dataset_name)
+
+    rows = int(df.shape[0])
+    cols = int(df.shape[1])
+    total_cells = rows * cols if rows and cols else 1
+
+    missing = _count_missing_values(df)
+    duplicates = _count_duplicate_rows(df)
+    outliers = _count_outlier_rows(df)
+    validation = _validation_violation_count(manifest, df)
+
+    # percent metrics (0..100)
+    missing_pct = round((missing / total_cells) * 100, 2) if total_cells else 0.0
+    duplicate_pct = round((duplicates / rows) * 100, 2) if rows else 0.0
+    outlier_pct = round((outliers / rows) * 100, 2) if rows else 0.0
+    validation_pct = round((validation / rows) * 100, 2) if rows else 0.0
+
+    normalized_quality = compute_normalized_quality_score(
+        missing_percent=missing_pct,
+        duplicate_percent=duplicate_pct,
+        outlier_percent=outlier_pct,
+        validation_violation_percent=validation_pct,
+    )
+
+    return {
+        'status': 'success',
+        'version': version_name,
+        'dataset_name': resolved_dataset_name,
+        'rows': rows,
+        'columns': cols,
+        'metrics': {
+            'missing': missing,
+            'missing_pct': missing_pct,
+            'duplicates': duplicates,
+            'duplicate_pct': duplicate_pct,
+            'outliers': outliers,
+            'outlier_pct': outlier_pct,
+            'validation_violations': validation,
+            'validation_pct': validation_pct,
+        },
+        'score': normalized_quality['score'],
+        'grade': normalized_quality['grade'],
+        'breakdown': {
+            'weights': normalized_quality['weights'],
+            'components': normalized_quality['components'],
+            'inputs': normalized_quality['inputs'],
+        },
+    }

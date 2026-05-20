@@ -5,16 +5,40 @@ from fastapi import HTTPException
 import pandas as pd
 import numpy as np
 
+from core.config import REPORTS_DIR
+from utils.dataset_storage import DATASETS_ROOT, TEMP_ROOT
+
+
+def _is_within(path: Path, root: Path) -> bool:
+    try:
+        path.resolve().relative_to(root.resolve())
+        return True
+    except ValueError:
+        return False
+
 
 def validate_file_path(file_path: str):
 
-    path = Path(file_path)
+    path = Path(file_path).resolve()
+
+    allowed_roots = (
+        DATASETS_ROOT.resolve(),
+        REPORTS_DIR.resolve(),
+        TEMP_ROOT.resolve(),
+    )
 
     if not path.exists():
 
         raise HTTPException(
             status_code=404,
             detail="Dataset file not found."
+        )
+
+    if not any(_is_within(path, root) for root in allowed_roots):
+
+        raise HTTPException(
+            status_code=403,
+            detail="Access to the requested file path is not allowed."
         )
 
     return path

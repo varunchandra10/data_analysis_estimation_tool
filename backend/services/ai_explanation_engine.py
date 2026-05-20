@@ -1,127 +1,121 @@
+from __future__ import annotations
+
+from typing import Any
+
 import httpx
-import json
+
+from core.config import OLLAMA_MODEL, OLLAMA_URL
 from utils.log_utils import log_calls
 
-# =========================================================
-# OLLAMA CONFIG
-# =========================================================
-
-OLLAMA_URL = "http://localhost:11434/api/generate"
-OLLAMA_MODEL = "phi3"
-TIMEOUT = 30.0  # Increased slightly as AI generation can be slow
+TIMEOUT = 30.0
 
 
-# =========================================================
-# GENERIC OLLAMA CALL (ASYNC)
-# =========================================================
+def _build_prompt(title: str, lines: list[str], instruction: str) -> str:
+    content = '\n'.join(lines)
+    return (
+        'Explain in ONLY 3 short lines.\n'
+        f'{title}\n'
+        f'{content}\n'
+        f'{instruction}'
+    )
+
 
 @log_calls
-async def ask_ollama(prompt: str):
-    """
-    Sends an async request to the local Ollama instance.
-    Using httpx ensures the FastAPI event loop is not blocked.
-    """
+async def ask_ollama(prompt: str) -> str:
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 OLLAMA_URL,
                 json={
-                    "model": OLLAMA_MODEL,
-                    "prompt": prompt,
-                    "stream": False
+                    'model': OLLAMA_MODEL,
+                    'prompt': prompt,
+                    'stream': False,
                 },
-                timeout=TIMEOUT
+                timeout=TIMEOUT,
             )
 
-            if response.status_code != 200:
-                return "AI explanation unavailable (Engine Error)."
+        if response.status_code != 200:
+            return 'AI explanation unavailable (Engine Error).'
 
-            result = response.json()
-            return result.get("response", "").strip()
-
+        result = response.json()
+        return result.get('response', '').strip() or 'AI explanation unavailable.'
     except (httpx.ConnectError, httpx.TimeoutException):
-        return "AI explanation unavailable (Connection Timeout)."
-    except Exception as e:
-        return f"AI explanation unavailable."
+        return 'AI explanation unavailable (Connection Timeout).'
+    except Exception:
+        return 'AI explanation unavailable.'
 
-
-# =========================================================
-# MISSING VALUE AI
-# =========================================================
 
 @log_calls
-async def explain_missing_value_method(
-    column,
-    recommended_method,
-    reason_codes
-):
-    prompt = f"""
-Explain in ONLY 3 short lines.
-Column: {column}
-Recommended missing value method: {recommended_method}
-Reason: {", ".join(reason_codes)}
-Explain why this method is suitable for this specific statistical context.
-"""
+async def explain_missing_value_method(column: str, recommended_method: str, reason_codes: list[str]) -> str:
+    prompt = _build_prompt(
+        title='Missing Value Recommendation',
+        lines=[
+            f'Column: {column}',
+            f'Recommended method: {recommended_method}',
+            f'Reasons: {", ".join(reason_codes or []) or "N/A"}',
+        ],
+        instruction='Explain why this is appropriate for data quality and inference reliability.',
+    )
     return await ask_ollama(prompt)
 
 
-# =========================================================
-# OUTLIER AI
-# =========================================================
-
 @log_calls
-async def explain_outlier_method(
-    column,
-    outlier_method,
-    reason_codes
-):
-    prompt = f"""
-Explain in ONLY 3 short lines.
-Column: {column}
-Recommended outlier method: {outlier_method}
-Reason: {", ".join(reason_codes)}
-Explain why this outlier detection method is statistically robust here.
-"""
+async def explain_outlier_method(column: str, outlier_method: str, reason_codes: list[str]) -> str:
+    prompt = _build_prompt(
+        title='Outlier Treatment Recommendation',
+        lines=[
+            f'Column: {column}',
+            f'Recommended method: {outlier_method}',
+            f'Reasons: {", ".join(reason_codes or []) or "N/A"}',
+        ],
+        instruction='Explain why this outlier strategy is statistically robust for survey-like data.',
+    )
     return await ask_ollama(prompt)
 
 
-# =========================================================
-# VALIDATION AI
-# =========================================================
-
 @log_calls
-async def explain_validation_issue(
-    column,
-    rule_type,
-    violation_count
-):
-    prompt = f"""
-Explain in ONLY 3 short lines.
-Validation issue detected in column: {column}
-Rule Type: {rule_type}
-Violations found: {violation_count}
-Explain the potential impact on survey data integrity.
-"""
+async def explain_validation_issue(column: str, rule_type: str, violation_count: int) -> str:
+    prompt = _build_prompt(
+        title='Validation Rule Summary',
+        lines=[
+            f'Column: {column}',
+            f'Rule type: {rule_type}',
+            f'Violations: {violation_count}',
+        ],
+        instruction='Explain how this violates survey dependency or consistency logic and its risk.',
+    )
     return await ask_ollama(prompt)
 
-
-# =========================================================
-# WEIGHT ESTIMATION AI
-# =========================================================
 
 @log_calls
 async def explain_weight_estimation(
-    analysis_type,
-    weighted_value,
-    unweighted_value,
-    margin_of_error
-):
-    prompt = f"""
-Explain in ONLY 3 short lines.
-Analysis Type: {analysis_type}
-Weighted Estimate: {weighted_value}
-Unweighted Estimate: {unweighted_value}
-Margin of Error: {margin_of_error}
-Interpret the variance between weighted and raw survey statistics.
-"""
+    analysis_type: str,
+    weighted_value: float | None,
+    unweighted_value: float | None,
+    margin_of_error: float | None,
+) -> str:
+    prompt = _build_prompt(
+        title='Weighting Estimate Summary',
+        lines=[
+            f'Analysis type: {analysis_type}',
+            f'Weighted estimate: {weighted_value}',
+            f'Unweighted estimate: {unweighted_value}',
+            f'Margin of error: {margin_of_error}',
+        ],
+        instruction='Interpret sampling imbalance and reliability of the weighted estimate.',
+    )
+    return await ask_ollama(prompt)
+
+
+@log_calls
+async def explain_quality_score(score: float | None, grade: str | None, components: dict[str, Any] | None) -> str:
+    prompt = _build_prompt(
+        title='Quality Score Interpretation',
+        lines=[
+            f'Normalized score: {score}',
+            f'Grade: {grade}',
+            f'Components: {components or {}}',
+        ],
+        instruction='Explain how validation consistency and statistical quality dimensions influenced this score.',
+    )
     return await ask_ollama(prompt)

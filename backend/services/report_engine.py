@@ -1,3 +1,126 @@
+from __future__ import annotations
+
+import io
+import json
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+import matplotlib.pyplot as plt
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import inch
+from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.lib import colors
+
+from core.config import DEFAULT_PROJECT
+from services.versioning_engine import read_dataset_file, get_manifest, compute_quality_score, ensure_dataset_layout, dataset_dir, processed_dir
+
+
+def _ensure_report_dir(dataset_name: str) -> Path:
+    folder = Path(dataset_dir(dataset_name))
+    reports = folder / 'reports'
+    reports.mkdir(parents=True, exist_ok=True)
+    return reports
+
+
+def _render_histogram(df, column: str, out_path: Path):
+    plt.figure(figsize=(6, 3))
+    df[column].dropna().hist(bins=30)
+    plt.title(f'Distribution: {column}')
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=150)
+    plt.close()
+
+
+def generate_report(
+    version_name: str,
+    project_id: str = DEFAULT_PROJECT,
+    dataset_name: str | None = None,
+    output_path: str | None = None,
+    include_charts: bool = True,
+    extra: dict[str, Any] | None = None,
+) -> Path:
+    manifest = get_manifest(project_id, version_name)
+    resolved = dataset_name or manifest.get('dataset_name')
+    df = read_dataset_file(manifest.get('dataset_path'))
+
+    reports_dir = _ensure_report_dir(resolved)
+    timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S')
+    report_name = output_path or str(reports_dir / f'report_{version_name}_{timestamp}.pdf')
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(report_name, pagesize=letter)
+    styles = getSampleStyleSheet()
+    story = []
+
+    # Title
+    story.append(Paragraph(f'Dataset Report — {resolved} — {version_name}', styles['Title']))
+    story.append(Spacer(1, 12))
+
+    # Overview
+    story.append(Paragraph('Dataset Overview', styles['Heading2']))
+    overview = [
+        ['Version', version_name],
+        ['Dataset', resolved],
+        ['Rows', str(int(df.shape[0]))],
+        ['Columns', str(int(df.shape[1]))],
+        ['Generated', datetime.utcnow().isoformat() + 'Z'],
+    ]
+    t = Table(overview, hAlign='LEFT')
+    t.setStyle(TableStyle([('GRID', (0, 0), (-1, -1), 0.5, colors.gray)]))
+    story.append(t)
+    story.append(Spacer(1, 12))
+
+    # Summaries from manifest
+    story.append(Paragraph('Preprocessing Summary', styles['Heading2']))
+    ops = manifest.get('operations', [])
+    story.append(Paragraph('Operations applied: ' + (', '.join(ops) if ops else 'None'), styles['Normal']))
+    story.append(Spacer(1, 8))
+
+    # Outlier / Validation / Weighting
+    story.append(Paragraph('Outlier Summary', styles['Heading2']))
+    outliers = manifest.get('outliers', {})
+    story.append(Paragraph(json.dumps(outliers), styles['Code']))
+    story.append(Spacer(1, 8))
+
+    story.append(Paragraph('Validation Summary', styles['Heading2']))
+    validation = manifest.get('validation', {})
+    story.append(Paragraph(json.dumps(validation), styles['Code']))
+    story.append(Spacer(1, 8))
+
+    story.append(Paragraph('Weighting Summary', styles['Heading2']))
+    weighting = manifest.get('weighting', {})
+    story.append(Paragraph(json.dumps(weighting), styles['Code']))
+    story.append(Spacer(1, 8))
+
+    story.append(Paragraph('AI Insights', styles['Heading2']))
+    ai = manifest.get('ai_insights') or manifest.get('ai_explanation') or extra or {}
+    story.append(Paragraph(json.dumps(ai), styles['Code']))
+    story.append(Spacer(1, 12))
+
+    # Data quality score
+    try:
+        quality = compute_quality_score(version_name, project_id, resolved)
+        story.append(Paragraph('Data Quality Score', styles['Heading2']))
+        story.append(Paragraph(f"Score: {quality.get('score')} — {quality.get('grade')}", styles['Normal']))
+        story.append(Spacer(1, 8))
+    except Exception:
+        pass
+
+    # Charts
+    if include_charts and not df.select_dtypes(include='number').empty:
+        numeric = df.select_dtypes(include='number').columns[:3]
+        for col in numeric:
+            img_path = reports_dir / f'chart_{version_name}_{col}.png'
+            _render_histogram(df, col, img_path)
+            story.append(Image(str(img_path), width=6 * inch, height=2.5 * inch))
+            story.append(Spacer(1, 12))
+
+    # Build PDF
+    doc.build(story)
+
+    return Path(report_name)
 import io
 from datetime import datetime
 from reportlab.lib import colors

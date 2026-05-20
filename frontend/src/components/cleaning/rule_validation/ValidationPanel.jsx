@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { apiUrl } from "../../../api/config";
 import { 
   ShieldCheck, 
   BrainCircuit, 
@@ -24,6 +25,16 @@ const RuleValidationPanel = ({ data, aiInsights = [] }) => {
   const [rules, setRules] = useState([]);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestionLoading, setSuggestionLoading] = useState(false);
+  const [suggestionError, setSuggestionError] = useState('');
+
+  useEffect(() => {
+    setSuggestions([]);
+    setSuggestionError('');
+  }, [metadata.file_path]);
+
+  const visibleInsights = suggestions.length > 0 ? suggestions : aiInsights;
 
   const addSimpleRule = (initialValues = {}) => {
     setRules(prev => ([
@@ -51,7 +62,7 @@ const RuleValidationPanel = ({ data, aiInsights = [] }) => {
   const runValidation = async () => {
     setLoading(true);
     try {
-      const response = await axios.post("http://localhost:8000/api/validation/run", {
+      const response = await axios.post(apiUrl("/api/validation/run"), {
         file_path: metadata.file_path,
         rules
       });
@@ -63,6 +74,21 @@ const RuleValidationPanel = ({ data, aiInsights = [] }) => {
     }
   };
 
+  const suggestRules = async () => {
+    setSuggestionLoading(true);
+    setSuggestionError('');
+    try {
+      const response = await axios.post(apiUrl("/api/validation/suggest"), {
+        file_path: metadata.file_path,
+      });
+      setSuggestions(response.data?.suggestions || []);
+    } catch (err) {
+      setSuggestionError(err.response?.data?.detail || err.message || 'Failed to suggest validation rules');
+    } finally {
+      setSuggestionLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6 antialiased text-slate-200 font-sans max-w-[1600px] mx-auto pb-12 px-4 sm:px-6 selection:bg-slate-800">
       
@@ -70,30 +96,30 @@ const RuleValidationPanel = ({ data, aiInsights = [] }) => {
       {/* PROFESSIONAL AI INTELLIGENCE HEADER */}
       {/* ===================================================== */}
       <div className={`rounded-xl border-2 transition-all duration-300 shadow-md ${
-        aiInsights && aiInsights.length > 0 
+        visibleInsights && visibleInsights.length > 0 
         ? "bg-[#0b1329] border-indigo-500/30 text-slate-200" 
         : "bg-[#0f172a] border-slate-800 text-slate-400"
       }`}>
         <div className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className={`p-2.5 rounded-lg border ${aiInsights && aiInsights.length > 0 ? "bg-slate-950 border-indigo-500/40 text-indigo-400" : "bg-slate-950 border-slate-800 text-slate-500"}`}>
+            <div className={`p-2.5 rounded-lg border ${visibleInsights && visibleInsights.length > 0 ? "bg-slate-950 border-indigo-500/40 text-indigo-400" : "bg-slate-950 border-slate-800 text-slate-500"}`}>
               <BrainCircuit size={20} strokeWidth={2} />
             </div>
             <div>
               <div className="flex items-center gap-2.5">
                 <h3 className="text-xs font-bold tracking-wider uppercase font-mono text-indigo-400">Heuristic Rule Engine</h3>
-                {aiInsights?.length > 0 && <span className="bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[9px] px-1.5 py-0.5 rounded-sm font-bold font-mono animate-pulse">AUTOGEN_READY</span>}
+                {visibleInsights?.length > 0 && <span className="bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[9px] px-1.5 py-0.5 rounded-sm font-bold font-mono animate-pulse">AUTOGEN_READY</span>}
               </div>
               <p className="text-xs mt-1.5 font-medium text-slate-300 leading-relaxed max-w-2xl">
-                {aiInsights && aiInsights.length > 0 
+                {visibleInsights && visibleInsights.length > 0 
                   ? "ML models have inferred semantic constraints based on column distribution and headers." 
                   : "Manual Constraint Definition: Specify deterministic logic for cross-field validation."}
               </p>
             </div>
           </div>
-          {aiInsights && aiInsights.length > 0 && (
+          {visibleInsights && visibleInsights.length > 0 && (
             <div className="shrink-0 flex items-center gap-1.5 px-3 py-1 bg-slate-950 border border-slate-900 rounded-md text-indigo-400 text-[10px] font-bold uppercase tracking-wider font-mono">
-              <Bot size={13} /> {aiInsights.length} suggestions found
+              <Bot size={13} /> {visibleInsights.length} suggestions found
             </div>
           )}
         </div>
@@ -119,36 +145,60 @@ const RuleValidationPanel = ({ data, aiInsights = [] }) => {
               </div>
             </div>
           </div>
-          <button
-            onClick={() => addSimpleRule()}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white px-4 py-2 rounded-md text-xs font-bold uppercase tracking-wide transition-all shadow-md active:scale-95 font-mono"
-          >
-            <Plus size={14} /> Add Logic
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={suggestRules}
+              disabled={suggestionLoading}
+              className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 px-4 py-2 rounded-md text-xs font-bold uppercase tracking-wide transition-all shadow-md active:scale-95 font-mono"
+            >
+              <BrainCircuit size={14} /> {suggestionLoading ? 'Suggesting...' : 'Suggest Rules'}
+            </button>
+            <button
+              onClick={() => addSimpleRule()}
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white px-4 py-2 rounded-md text-xs font-bold uppercase tracking-wide transition-all shadow-md active:scale-95 font-mono"
+            >
+              <Plus size={14} /> Add Logic
+            </button>
+          </div>
         </div>
+
+        {suggestionError && (
+          <div className="mx-6 mt-4 rounded-lg border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+            {suggestionError}
+          </div>
+        )}
 
         {/* ===================================================== */}
         {/* AI SUGGESTIONS SECTION (THICK OUTLINE ADDED) */}
         {/* ===================================================== */}
-        {aiInsights && aiInsights.length > 0 && rules.length === 0 && (
+        {visibleInsights && visibleInsights.length > 0 && rules.length === 0 && (
           <div className="m-6 p-5 border-2 border-slate-800/80 bg-slate-950/10 rounded-xl">
              <div className="flex items-center gap-2 mb-4">
                 <Bot size={14} className="text-indigo-400" />
                 <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Statistical Recommendations</h4>
              </div>
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              {aiInsights.slice(0, 4).map((suggestion, i) => (
+              {visibleInsights.slice(0, 4).map((suggestion, i) => (
                 <div key={i} className="flex flex-col justify-between p-4 rounded-lg bg-[#0b1329]/40 border border-slate-900 hover:border-slate-700 transition-colors shadow-sm">
                     <div className="mb-3.5">
-                      <p className="font-mono text-xs font-semibold text-slate-200 truncate">{suggestion.column}</p>
-                      <p className="font-mono text-[11px] text-indigo-400 font-bold mt-1.5">{suggestion.operator} {suggestion.value}</p>
+                      <p className="font-mono text-xs font-semibold text-slate-200 truncate">{suggestion.column || 'Cross-field rule'}</p>
+                      <p className="font-mono text-[11px] text-indigo-400 font-bold mt-1.5">{suggestion.rule_text || `${suggestion.operator || ''} ${suggestion.value ?? ''}`}</p>
+                      {suggestion.confidence !== undefined && (
+                        <p className="mt-1 text-[10px] uppercase tracking-wider text-slate-500">Confidence {suggestion.confidence}%</p>
+                      )}
                     </div>
-                    <button 
-                      onClick={() => addSimpleRule(suggestion)}
-                      className="w-full text-[10px] font-bold uppercase tracking-wide text-indigo-400 bg-indigo-500/5 hover:bg-indigo-600 border border-indigo-500/10 hover:text-white py-1.5 rounded-md transition-colors font-mono"
-                    >
-                      Apply Suggestion
-                    </button>
+                    {suggestion.operator ? (
+                      <button 
+                        onClick={() => addSimpleRule(suggestion)}
+                        className="w-full text-[10px] font-bold uppercase tracking-wide text-indigo-400 bg-indigo-500/5 hover:bg-indigo-600 border border-indigo-500/10 hover:text-white py-1.5 rounded-md transition-colors font-mono"
+                      >
+                        Apply Suggestion
+                      </button>
+                    ) : (
+                      <div className="w-full rounded-md border border-slate-800 bg-slate-950/60 py-1.5 text-center text-[10px] font-bold uppercase tracking-wide text-slate-500 font-mono">
+                        Guidance Only
+                      </div>
+                    )}
                 </div>
               ))}
             </div>
@@ -187,7 +237,7 @@ const RuleValidationPanel = ({ data, aiInsights = [] }) => {
                       onChange={(e) => updateRule(idx, "operator", e.target.value)}
                       className="w-full h-9 border border-slate-700 bg-slate-950 hover:border-slate-600 rounded-md px-3 text-[11px] font-bold font-mono text-center text-indigo-400 focus:border-indigo-500 outline-none transition-colors cursor-pointer"
                     >
-                      {["==", "!=", ">", "<", ">=", "<="].map(op => <option key={op} value={op} className="text-slate-200 bg-slate-950">{op}</option>)}
+                      {["==", "!=", ">", "<", ">=", "<=", "is_null", "not_null"].map(op => <option key={op} value={op} className="text-slate-200 bg-slate-950">{op}</option>)}
                     </select>
                   </div>
                   <div className="w-full md:w-48">

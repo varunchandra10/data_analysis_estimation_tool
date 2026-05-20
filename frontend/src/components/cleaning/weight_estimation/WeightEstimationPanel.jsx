@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { apiUrl } from "../../../api/config";
 import { 
   Scale, 
   BrainCircuit, 
@@ -33,7 +34,7 @@ const WeightEstimationPanel = ({ data, aiInsights = [], onEstimationComplete }) 
     if (!valueColumn || !weightColumn) return;
     setLoading(true);
     try {
-      const response = await axios.post("http://localhost:8000/api/statistics/estimate", {
+      const response = await axios.post(apiUrl("/api/statistics/estimate"), {
         file_path: metadata.file_path,
         value_column: valueColumn,
         weight_column: weightColumn,

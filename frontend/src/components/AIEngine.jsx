@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import axios from "axios";
+import { apiUrl } from "../api/config";
 
 const AIEngine = ({
   datasetData,
@@ -40,7 +41,7 @@ const AIEngine = ({
 
       const response = await axios.post(
 
-        "http://localhost:8000/api/ai/recommendations",
+        apiUrl("/api/ai/recommendations"),
 
         {
 

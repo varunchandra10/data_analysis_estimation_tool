@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { apiUrl } from "../../../api/config";
 import { 
   AlertCircle, 
   CheckCircle2, 
@@ -60,7 +61,7 @@ const MissingValuePanel = ({ data, aiInsights = [], onCleaningComplete }) => {
     setLoading(true);
     try {
       const response = await axios.post(
-        "http://localhost:8000/api/clean/missing-values",
+        apiUrl("/api/clean/missing-values"),
         { file_path: metadata.file_path, strategies }
       );
       onCleaningComplete(response.data);

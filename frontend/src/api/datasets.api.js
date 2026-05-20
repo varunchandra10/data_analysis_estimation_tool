@@ -1,9 +1,8 @@
 import axios from 'axios';
-
-const API_BASE = 'http://localhost:8000';
+import { apiUrl } from './config';
 
 export async function fetchFullDatasetPreview(filePath) {
-  const response = await axios.post(`${API_BASE}/api/datasets/full-preview`, {
+  const response = await axios.post(apiUrl('/api/datasets/full-preview'), {
     file_path: filePath,
   });
 
@@ -19,4 +18,12 @@ export async function fetchFullDatasetPreview(filePath) {
       ...(response.data?.metadata || {}),
     },
   };
+}
+
+export async function runFullPipeline(filePath) {
+  const response = await axios.post(apiUrl('/api/pipeline/run'), {
+    file_path: filePath,
+  });
+
+  return response.data;
 }

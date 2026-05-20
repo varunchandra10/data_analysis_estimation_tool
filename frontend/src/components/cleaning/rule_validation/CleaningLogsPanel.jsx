@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { apiUrl } from "../../../api/config";
 import { 
   History, 
   Search, 
@@ -27,7 +28,7 @@ const CleaningLogsPanel = ({ data }) => {
     const fetchLogs = async () => {
       setLoading(true);
       try {
-        const response = await axios.get(`http://localhost:8000/api/logs/${metadata.filename}`);
+        const response = await axios.get(apiUrl(`/api/logs/${metadata.filename}`));
         setLogs(response.data.logs?.reverse() || []);
       } catch (err) {
         console.error("Failed to fetch logs:", err);
