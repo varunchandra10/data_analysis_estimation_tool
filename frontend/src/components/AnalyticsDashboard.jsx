@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   CheckCircle,
   AlertTriangle,
@@ -27,14 +27,26 @@ import BoxPlotComponent from "./charts/BoxPlotComponent";
 import StatisticsPanel from "./StatisticsPanel";
 // import GraphEnclosure from "./GraphEnclosure";
 import GraphEnclosure from "./UI/graphModal";
+import PipelineGraph from "./PipelineGraph";
+import { runFullPipeline, fetchFullDatasetPreview } from "../api/datasets.api";
 
 const AnalyticsDashboard = ({
   datasetData,
+  setDatasetData,
   validationResult,
+  setValidationResult,
   estimationResult,
+  setEstimationResult,
   outlierResult,
-  duplicateResult
+  setOutlierResult,
+  duplicateResult,
+  setDuplicateResult,
+  aiResults,
+  setAIResults
 }) => {
+  const [pipelineStatus, setPipelineStatus] = useState(null);
+  const [pipelineResult, setPipelineResult] = useState(null);
+  const [isRunningPipeline, setIsRunningPipeline] = useState(false);
 
   if (!datasetData) return null;
 
@@ -60,6 +72,133 @@ const AnalyticsDashboard = ({
   const numericalStats = statistics?.numerical || [];
   const categoricalStats = statistics?.categorical || [];
   const correlationStats = statistics?.correlation || [];
+  const pipelineStages = pipelineResult?.stage_results?.length
+    ? pipelineResult.stage_results.map((stage, index) => ({
+        id: stage.stage || `stage-${index}`,
+        stage: stage.stage,
+        label: stage.stage ? stage.stage.toUpperCase() : `STAGE ${index + 1}`,
+        version: stage.version || `v${index + 1}`,
+        status: stage.status || 'pending',
+        timestamp: stage.timestamp || null,
+        lineage: index === 0 ? 'raw' : pipelineResult.stage_results[index - 1]?.version || 'previous',
+        active: pipelineStatus?.currentVersion ? stage.version === pipelineStatus.currentVersion : false,
+        rollbackAvailable: index < pipelineResult.stage_results.length - 1,
+      }))
+    : [
+        {
+          id: 'raw',
+          stage: 'raw',
+          label: 'RAW',
+          version: 'raw_source',
+          status: 'completed',
+          timestamp: datasetData?.metadata?.generated_at || datasetData?.metadata?.uploaded_at || null,
+          lineage: 'source',
+          active: false,
+          rollbackAvailable: false,
+        },
+        {
+          id: 'cleaning',
+          stage: 'cleaning',
+          label: 'CLEANING',
+          version: 'v1_cleaned',
+          status: duplicateResult || outlierResult || validationResult || estimationResult ? 'completed' : 'pending',
+          timestamp: null,
+          lineage: 'raw',
+          active: false,
+          rollbackAvailable: true,
+        },
+        {
+          id: 'outliers',
+          stage: 'outliers',
+          label: 'OUTLIERS',
+          version: 'v2_outliers',
+          status: outlierResult ? 'completed' : 'pending',
+          timestamp: null,
+          lineage: 'cleaning',
+          active: false,
+          rollbackAvailable: true,
+        },
+        {
+          id: 'validation',
+          stage: 'validation',
+          label: 'VALIDATION',
+          version: 'v3_validated',
+          status: validationResult ? 'completed' : 'pending',
+          timestamp: null,
+          lineage: 'outliers',
+          active: false,
+          rollbackAvailable: true,
+        },
+        {
+          id: 'weighting',
+          stage: 'weighting',
+          label: 'WEIGHTING',
+          version: 'v4_weighted',
+          status: estimationResult ? 'completed' : 'pending',
+          timestamp: null,
+          lineage: 'validation',
+          active: false,
+          rollbackAvailable: true,
+        },
+        {
+          id: 'report',
+          stage: 'report',
+          label: 'REPORT',
+          version: 'v5_report',
+          status: pipelineStatus?.status === 'completed' ? 'completed' : 'pending',
+          timestamp: pipelineStatus?.status === 'completed' ? new Date().toISOString() : null,
+          lineage: 'weighting',
+          active: false,
+          rollbackAvailable: false,
+        },
+      ];
+
+  const handleRunFullPipeline = async () => {
+    const filePath = datasetData?.metadata?.file_path || datasetData?.metadata?.filePath;
+    if (!filePath) {
+      setPipelineStatus({ status: "missing_file", message: "Dataset file path is not available." });
+      return;
+    }
+
+    setIsRunningPipeline(true);
+    setPipelineStatus({ status: "running", message: "Pipeline execution started." });
+
+    try {
+      const result = await runFullPipeline(filePath);
+      setPipelineResult(result);
+      setPipelineStatus({
+        status: result?.pipeline_status || "completed",
+        currentVersion: result?.current_version || "N/A",
+        stepsCompleted: result?.steps_completed || [],
+        message: "Full pipeline completed successfully. Refreshing dashboard...",
+      });
+
+      // Update the frontend with the newly processed dataset
+      const finalStage = result.stage_results?.find(s => s.stage === 'weighting' || s.stage === 'validation' || s.stage === 'outliers' || s.stage === 'preprocessing');
+      if (finalStage?.file_path && setDatasetData) {
+        const newData = await fetchFullDatasetPreview(finalStage.file_path);
+        setDatasetData(newData);
+        
+        // Optionally clear the previous partial results so the UI reflects the new baseline
+        if (setValidationResult) setValidationResult(null);
+        if (setEstimationResult) setEstimationResult(null);
+        if (setOutlierResult) setOutlierResult(null);
+        if (setDuplicateResult) setDuplicateResult(null);
+        if (setAIResults) setAIResults(null);
+        
+        setPipelineStatus(prev => ({
+          ...prev,
+          message: "Dashboard successfully updated to latest pipeline version."
+        }));
+      }
+
+    } catch (error) {
+      const detail = error?.response?.data?.detail || error?.message || "Pipeline execution failed.";
+      setPipelineStatus({ status: "failed", message: detail });
+    } finally {
+      setIsRunningPipeline(false);
+    }
+  };
 
   return (
     <div className="space-y-6 mt-4 pb-12 antialiased text-slate-200 font-sans max-w-[1600px] mx-auto px-4 sm:px-6 selection:bg-slate-800">
@@ -97,8 +236,42 @@ const AnalyticsDashboard = ({
            <button className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 text-slate-200 hover:text-white rounded-md text-xs font-semibold transition-colors border border-slate-700/60 font-mono">
             Full Report <ArrowUpRight size={13} />
           </button>
+          <button
+            type="button"
+            onClick={handleRunFullPipeline}
+            disabled={isRunningPipeline}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed rounded-md text-xs font-semibold transition-colors border border-indigo-400/30 font-mono"
+          >
+            {isRunningPipeline ? "Running Pipeline..." : "Run Full Pipeline"}
+            <RefreshCcw size={13} />
+          </button>
         </div>
       </div>
+
+      {pipelineStatus && (
+        <div className="rounded-xl border border-slate-800 bg-[#0b1329]/80 p-4 shadow-sm">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Pipeline Run</p>
+              <p className="text-sm text-slate-200 font-medium">{pipelineStatus.message}</p>
+            </div>
+            {pipelineStatus.currentVersion && (
+              <div className="text-xs font-mono text-slate-400">
+                Current version: <span className="text-slate-200">{pipelineStatus.currentVersion}</span>
+              </div>
+            )}
+          </div>
+          {Array.isArray(pipelineStatus.stepsCompleted) && pipelineStatus.stepsCompleted.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {pipelineStatus.stepsCompleted.map((step) => (
+                <span key={step} className="rounded-full border border-slate-700 bg-slate-950/60 px-3 py-1 text-[11px] uppercase tracking-wider text-slate-300">
+                  {step}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ================================================= */}
       {/* 2. KPI CARDS */}
@@ -286,6 +459,18 @@ const AnalyticsDashboard = ({
       {/* 7. BIAS ESTIMATION & WORKFLOW PROGRESS */}
       {/* ================================================= */}
       <div className="space-y-6">
+        <GraphEnclosure
+          title="Workflow Lineage Graph"
+          subtitle="Visualized execution from raw intake to report generation with version tracking"
+          icon={Layers3}
+          hasData={pipelineStages.length > 0}
+        >
+          <PipelineGraph
+            stages={pipelineStages}
+            activeVersion={pipelineStatus?.currentVersion || pipelineResult?.current_version}
+          />
+        </GraphEnclosure>
+
         {/* BIAS CORRECTION BAR TRACK */}
         {estimationResult && (
           <GraphEnclosure

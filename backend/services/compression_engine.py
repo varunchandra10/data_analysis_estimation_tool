@@ -82,7 +82,6 @@ def archive_old_versions(
     if len(versions) <= keep_latest:
         return []
 
-    archive_dir = _archive_dir(project_id)
     archived_paths: list[Path] = []
 
     for version_info in versions[:-keep_latest]:

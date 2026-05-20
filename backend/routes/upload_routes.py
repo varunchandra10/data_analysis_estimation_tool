@@ -9,6 +9,8 @@ from io import BytesIO
 import pandas as pd
 
 from core.config import MAX_ROWS
+from schemas.common import success_response
+from schemas.upload_schema import UploadRequest
 
 from utils.file_utils import (
     safe_json_replace
@@ -21,18 +23,18 @@ from utils.dataframe_utils import (
 from utils.log_utils import log_calls
 from services.versioning_engine import save_stage_dataset
 from utils.dataset_storage import resolve_dataset_name
-from utils.file_utils import load_dataframe_from_path
+from services.dataset_loader import load_dataset, validate_dataset_path, load_dataset_from_buffer
 
 router = APIRouter()
 
 
 @router.post("/api/datasets/full-preview")
 @log_calls
-async def full_dataset_preview(payload: dict):
+async def full_dataset_preview(payload: UploadRequest):
 
     try:
 
-        file_path = payload.get("file_path")
+        file_path = payload.file_path
 
         if not file_path:
             raise HTTPException(
@@ -40,27 +42,19 @@ async def full_dataset_preview(payload: dict):
                 detail="file_path is required."
             )
 
-        path = Path(file_path)
-        df = load_dataframe_from_path(path)
+        path = validate_dataset_path(Path(file_path))
+        df = load_dataset(path, optimize=True)
 
-        return {
-
-            "status": "success",
-
+        data = {
             "metadata": {
-
                 "file_path": str(path),
-
                 "rows": len(df),
-
                 "columns": len(df.columns),
-
             },
-
             "columns": list(df.columns),
-
             "rows": safe_json_replace(df),
         }
+        return success_response("Dataset preview loaded.", data=data, metadata=data["metadata"], columns=data["columns"], rows=data["rows"])
 
     except HTTPException:
         raise
@@ -91,14 +85,9 @@ async def upload_dataset(
 
         file_bytes = await file.read()
         buffer = BytesIO(file_bytes)
+        file_type = 'csv' if file.filename.endswith('.csv') else 'xlsx'
 
-        if file.filename.endswith(".csv"):
-
-            df = pd.read_csv(buffer)
-
-        else:
-
-            df = pd.read_excel(buffer)
+        df = load_dataset_from_buffer(buffer, file_type, optimize=True)
 
         if len(df) > MAX_ROWS:
 
@@ -114,35 +103,17 @@ async def upload_dataset(
             file_extension=Path(file.filename).suffix,
         )
 
-        return {
-
-            "status": "success",
-
-            "metadata": {
-
-                "filename": file.filename,
-
-                "dataset_name": resolve_dataset_name(saved_path),
-
-                "file_path": str(saved_path),
-
-                "rows": len(df),
-
-                "columns": len(df.columns),
-
-                "null_counts": (
-                    df.isnull()
-                    .sum()
-                    .to_dict()
-                )
-            },
-
-            "schema": infer_schema(df),
-
-            "preview": safe_json_replace(
-                df.head(5)
-            )
+        metadata = {
+            "filename": file.filename,
+            "dataset_name": resolve_dataset_name(saved_path),
+            "file_path": str(saved_path),
+            "rows": len(df),
+            "columns": len(df.columns),
+            "null_counts": df.isnull().sum().to_dict(),
         }
+        schema = infer_schema(df)
+        preview = safe_json_replace(df.head(5))
+        return success_response("Dataset uploaded successfully.", data={"metadata": metadata, "schema": schema, "preview": preview}, metadata=metadata, schema=schema, preview=preview)
 
     except HTTPException:
         raise

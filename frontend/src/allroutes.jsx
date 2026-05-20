@@ -12,14 +12,7 @@ import StatisticalEngine from './pages/analysis/StatisticalEngine';
 import VersionControl from './pages/versioning/VersionControl';
 import AuditTrail from './pages/cleaning/AuditTrail';
 import ReportPanel from './components/ReportPanel';
-
-const pushPath = (path) => {
-  try {
-    window.history.pushState({}, '', path);
-  } catch (e) {
-    window.location.hash = path;
-  }
-};
+import { useNavigate } from 'react-router-dom';
 
 export default function AllRoutes({
   datasetData,
@@ -33,27 +26,32 @@ export default function AllRoutes({
   setAnalyticsViewData,
   analyticsViewData,
   validationResult,
+  setValidationResult,
   estimationResult,
   setEstimationResult,
   outlierResult,
+  setOutlierResult,
   duplicateResult,
+  setDuplicateResult,
   activeAnalyticsData,
   missingValueInsights,
   outlierInsights,
   validationInsights
 }) {
+  const navigate = useNavigate();
+
   const handleUploadSuccess = (data) => {
     setDatasetData(data);
     setAnalyticsViewData(null);
     setActiveTab('overview');
-    pushPath('/dataset-explorer');
+    navigate('/dataset-explorer');
     setAIResults(null);
     setAIResultsSourcePath(null);
   };
 
   const handleWholeDatasetBack = () => {
     setActiveTab('overview');
-    pushPath('/dataset-explorer');
+    navigate('/dataset-explorer');
   };
 
   const handleNullAnalysisComplete = (result) => {
@@ -178,11 +176,17 @@ export default function AllRoutes({
         element={
           <StatisticalEngine
             datasetData={activeAnalyticsData}
+            setDatasetData={setDatasetData}
             validationResult={validationResult}
+            setValidationResult={setValidationResult}
             estimationResult={estimationResult}
+            setEstimationResult={setEstimationResult}
             outlierResult={outlierResult}
+            setOutlierResult={setOutlierResult}
             duplicateResult={duplicateResult}
+            setDuplicateResult={setDuplicateResult}
             aiResults={aiResults}
+            setAIResults={setAIResults}
           />
         }
       />

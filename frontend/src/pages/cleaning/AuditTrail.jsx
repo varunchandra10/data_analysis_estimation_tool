@@ -1,6 +1,6 @@
 import React from 'react';
-import CleaningLogsPanel from '../../components/cleaning/rule_validation/CleaningLogsPanel';
+import TimelinePanel from '../../components/TimelinePanel';
 
 export default function AuditTrail(props) {
-  return <CleaningLogsPanel {...props} />;
+  return <TimelinePanel data={props.data} />;
 }

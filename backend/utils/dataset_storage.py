@@ -5,7 +5,7 @@ import re
 import tempfile
 from pathlib import Path
 
-from core.config import BASE_DIR
+from core.config import BASE_DIR, DEFAULT_PROJECT
 
 
 DATASETS_ROOT = BASE_DIR / "backend" / "datasets"
@@ -166,7 +166,7 @@ def _migrate_legacy_stage_files(root: Path) -> None:
 
 
 def cleanup_legacy_root_directories() -> None:
-    for name in ("ai_cache", "archive", "logs", "manifests", "versions", "temp_workspace", "project_001"):
+    for name in ("ai_cache", "archive", "logs", "manifests", "versions", "temp_workspace", DEFAULT_PROJECT):
         legacy_path = DATASETS_ROOT / name
         if legacy_path.exists() and legacy_path.is_dir():
             try:
