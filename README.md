@@ -18,10 +18,10 @@ Why this project
 # Project snapshots:
 ![DAET_mainpage](documents/img_1.png)
 ![DAET_uploadpage](documents/img_2.png)
-![DAET_dashboard](image.png)
+![DAET_dashboard](documents/img_3.png)
 
 # User Sequence Diagram(Till what have been implemented):
-![sequence_diaram_DAET](image-1.png)
+![sequence_diaram_DAET](documents/sequence_diagram.png)
 
 
 Core Capabilities
