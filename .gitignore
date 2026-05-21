@@ -3,3 +3,8 @@ backend/venv/
 ./frontend/node_modules
 git_commands.txt
 /AI_Integration.MD
+
+
+# Ignore backend sources but keep README.md
+/backend/*
+!/backend/README.md
