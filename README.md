@@ -1,198 +1,150 @@
+# DAET - AI Augmented Survey Data Processing & Analytics Platform
 
-DAET - Data Analysis Estimation Tool
-==================================
-
-AI-Augmented Survey Data Cleaning, Validation, Weighting, Versioning & Reporting Platform.
-
-Badges: FastAPI · React · SQLite · Pandas · NumPy · Recharts · Ollama · Versioning · Encryption · Compression
+DAET (Data Analysis & Estimation Tool) is a full‑stack app (React + FastAPI) for ingesting and cleaning survey data, running validations and IPF demographic weighting, generating explainable AI insights, tracking versioned dataset lineage, and producing audited exports
 
 ---
 
-Why this project
------------------
-- Purpose: make survey datasets production-ready with reproducible preprocessing, validation, weighting, versioning and AI-assisted interpretation.
-- Targets: data engineers, backend/full‑stack engineers, technical reviewers and recruiters evaluating system and algorithmic maturity.
-- Real needs addressed: schema inference, cleaning, statistical weighting, audit trails, LLM-assisted explanations, and exportable reports.
-- Design goal: deterministic statistical pipelines + controlled LLM assistance for interpretability and speed.
+## Submodule Documentation
 
-# Project snapshots:
-![DAET_mainpage](documents/img_1.png)
-![DAET_uploadpage](documents/img_2.png)
-![DAET_dashboard](image.png)
+Detailed implementation notes, directory breakdowns, dependencies, and execution logs are located in their respective module folders:
 
-# User Sequence Diagram(Till what have been implemented):
-![sequence_diaram_DAET](image-1.png)
+* **[Frontend Documentation](./frontend/README.md)**: React components, state contexts, custom hooks, charting interfaces, and Playwright E2E tests.
+* **[Backend Documentation](./backend/README.md)**: FastAPI router structure, Pydantic DTOs, Pandas cleaning engines, SQLite schemas, and Pytest coverage.
 
+---
 
-Core Capabilities
------------------
+## Key Features
 
-| Module | Capability | Status |
-|---|---:|:---:|
-| Dataset Upload | CSV / XLSX ingestion, metadata extraction | ✅ Implemented |
-| Schema Inference | Column typing, basic constraints | ✅ Implemented |
-| Dataset Preview | Tabular preview + column stats | ✅ Implemented |
-| Missing Value Cleaning | Mean/median/mode/KNN, per-column strategies | ✅ Implemented |
-| Outlier Detection | IQR, Z‑score, Winsorization | ✅ Implemented |
-| Duplicate Handling | Detection / deduplication policies | ✅ Implemented |
-| Validation DSL | Rule authoring & conditional checks | 🟡 Partial |
-| Weight Estimation | Survey weighting engine | ✅ Implemented |
-| Analytics Dashboard | Charts + summaries | 🟡 Partial |
-| AI Recommendation Engine | Statistical + heuristic recommendations | ✅ Implemented |
-| AI Explanation Layer | LLM-driven explanations (Ollama) | 🟡 Partial |
-| AI Cache | Cached AI outputs for repeatability | ✅ Implemented |
-| Dataset Versioning | File-backed version history, metadata | ✅ Implemented |
-| Rollback | Restore prior dataset versions | ✅ Implemented |
-| Compression | Archive + compressed snapshot support | ✅ Implemented |
-| Encryption | At-rest encryption workflows | ✅ Implemented |
-| Archive Management | Archive, retrieve, lifecycle policies | ✅ Implemented |
-| PDF Reporting | Report generation (template + export) | 🟡 Partial |
-| Pipeline Execution | Orchestrated pipelines + audit logs | ✅ Implemented |
-| Audit Logs | Operation traceability & metadata | ✅ Implemented |
+| Feature | Short description |
+| --- | --- |
+| Dataset preprocessing & cleaning | CSV/XLSX ingest, preview, impute (mean/median/mode/const/interpolate), dedupe |
+| Outlier detection | IQR and Z-score filters with visual indicators |
+| Validation DSL | Cross-field conditional rule engine for data checks |
+| Weight estimation (IPF) | Iterative Proportional Fitting (raking) for demographic calibration |
+| AI recommendations | Automatic cleaning suggestions based on dataset metrics |
+| Explainable AI | Ollama or Gemini-generated explanations with SQLite caching |
+| Version lineage & rollback | DAG view of versions and single-click rollback |
+| PDF reports | Automated audited PDF exports summarizing actions and scores |
+| Secure storage | AES encryption, compression, and HMAC-signed temporary links |
+| Audit logs | SQLite-tracked operation logs with timestamps and row counts |
+| Responsive UI & themes | Light/Dark responsive dashboard with Recharts and Framer Motion |
 
-Tech Stack
-----------
+----
 
-| Layer | Stack |
-|---|---|
-| Backend | FastAPI, Pydantic, SQLite, Pandas, NumPy, SciPy, Statsmodels |
-| Frontend | React (Vite), Tailwind CSS, Recharts, Lucide |
-| AI | Ollama, Phi3 (model runner) - hybrid deterministic + LLM workflows |
-| Storage | File-backed versioning, compression, encryption, checksum integrity |
-| Testing & CI | Pytest (backend), Playwright (e2e), basic CI templates |
+## System Architecture
+![sys_arch](documents/abstract_architecture.png)
 
-System Architecture (conceptual)
---------------------------------
+---
 
-Frontend
-  ↓
-API Layer (FastAPI)
-  ↓
-Service Layer (upload, cleaning, validation, weighting)
-  ↓
-Statistical Engines (Pandas, SciPy, Statsmodels)
-  ↓
-AI Layer (Ollama + deterministic engines)
-  ↓
-Storage & Versioning (file snapshots + metadata)
-  ↓
-Reports / Exports / Archive
+## End to End Sequence Diagram
+![e2e](documents/end_to_end_seq_1.png)
+![e2e](documents/end_to_end_seq_2.png)
+![e2e](documents/end_to_end_seq_3.png)
 
-Backend Highlights
-------------------
-- Modular FastAPI routes and service-layer separation.
-- Reusable utility modules for DataFrame operations and validation logic.
-- Statistical recommendation engine (deterministic) with audit trails.
-- AI orchestration that combines deterministic outputs with controlled LLM prompts.
-- File-backed dataset lineage and version-aware reporting.
-- Compression and encryption workflows integrated into lifecycle operations.
-- Pipeline‑ready architecture with explicit audit logging.
+---
 
-Dataset Version Flow
---------------------
+## UI Showcase & Screen Previews
+![project_homepage](documents/1.png) 
+![project_dataset_explorer_page](documents/2.png) 
+![project_dashboard](documents/3.png) 
+![project_version_control_page](documents/4.png)
 
-Raw Upload → v1 Cleaning → v2 Outlier Handling → v3 Validation → v4 Weight Estimation → Reports / Archive / Export
+---
 
-- Rollback to any snapshot supported via file-backed versions and metadata.
+## Tech Stack Overview
 
-AI Layer Overview
------------------
+| Component | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Frontend Core** | React 19 (Vite) | Declarative UI, utilizing the React Compiler for render optimization. |
+| **Frontend Styling** | TailwindCSS v4 | Custom utility CSS and HSL styling variables with Dark Mode support. |
+| **State & Navigation** | Zustand & React Router v7 | Global client state management and nested dashboard routing. |
+| **Visualizations** | Recharts & React Flow | Interactive SVG charts and lineage DAG canvases. |
+| **E2E Testing** | Playwright | Multi-browser automated end-to-end interface testing. |
+| **Backend Core** | FastAPI & Uvicorn | High-throughput async ASGI web server and routing. |
+| **Data Calculations** | Pandas, NumPy & SciPy | Matrix operations, raking algorithms, and statistical profiles. |
+| **Database & ORM** | SQLite & SQLAlchemy v2 | Audit logging, project registries, and task tracking databases. |
+| **AI LLM Engine** | Ollama (`phi3`) & Gemini API | Asynchronous local model client with Gemini 2.5 Flash API fallback for recommendations. |
+| **Reports** | ReportLab | Programmatic compiling of high-fidelity PDF analytics summaries. |
+| **Cryptography** | Pyca/Cryptography | AES encryption at rest and SHA-256 checksum verifications. |
+| **Backend Testing** | Pytest | Analytical validation and unit testing of APIs and engines. |
 
-| AI Layer | Purpose |
-|---|---|
-| Recommendation Engine | Deterministic statistical suggestions and rules |
-| Explanation Engine | Ollama-based, human-readable explanations for changes |
-| Module AI | Module-specific assistance (validation, weighting hints) |
-| AI Cache | Persisted outputs to ensure repeatable results |
+---
 
-- Hybrid approach: deterministic statistical logic first; LLMs used for explanations and contextual summaries.
+## Repository Structure
 
-Frontend Highlights
--------------------
-- Dataset preview with schema and quick-stats.
-- Dashboard analytics and charting (Recharts).
-- Panels for missing values, outliers, duplicates, validation rules, and weight estimation.
-- AI insight panels with cached recommendations and explanations.
-- Version tracking and report/export surfaces.
-
-Project Structure (top-level)
-----------------------------
-
-backend/
-frontend/
-services/
-routes/
-utils/
-ai_cache/
-datasets/
-logs/
-
-Current Maturity
-----------------
-
-| Area | Status |
-|---|---:|
-| Architecture Hardening | In Progress |
-| Validation DSL | Partial |
-| Weighting Correctness | Improved (iterating) |
-| AI Consolidation | In Progress |
-| DB + File Sync | Planned |
-| Performance Scaling | Planned |
-| Testing Expansion | Planned |
-
-Key Engineering Learnings
--------------------------
-- File-backed dataset lineage simplifies rollback and auditability.
-- Deterministic preprocessing (stats + rules) is essential before LLM use.
-- Survey weighting requires explicit, testable transformations and diagnostics.
-- AI orchestration benefits from caching and controlled prompts for reproducibility.
-- Clear route/service separation improves testability and recruitment evaluation.
-- Version-aware reporting avoids silent destructive edits.
-
-Run locally (quick)
--------------------
-
-Backend (Python / venv)
-
-```bash
-python -m venv .venv
-source .venv/Scripts/activate  # PowerShell: .venv\Scripts\Activate.ps1
-pip install -r backend/requirements.txt
-uvicorn backend.main:app --reload
+```
+DAET/
+├── backend/            
+├── frontend/           
+├── documents/                        
+├── LICENSE             
+└── README.md        
 ```
 
-Frontend
+---
 
+## ⚙️ Getting started (quick)
+
+Clone the repo and enter the project folder:
 ```bash
-cd frontend
+git clone <REPO_URL>
+cd DAET
+```
+
+Backend (run from `backend`):
+```bash
+python -m venv venv
+# Windows:
+.\venv\Scripts\Activate.ps1
+# macOS/Linux:
+source venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+```
+
+Frontend (run from `frontend`):
+```bash
 npm install
 npm run dev
 ```
 
-Ollama (if using local model)
+### AI Configuration (Ollama & Gemini API)
 
-```bash
-ollama serve
-ollama run phi3
-```
+DAET supports a dual-AI engine configuration for generating explainable insights:
+* **Local Mode (Ollama)**: Uses local running model weights (default: `phi3`).
+* **Cloud Mode (Google Gemini)**: Automatically falls back to Google's **Gemini 2.5 Flash API** if Ollama is offline or when deployed to production (e.g. on Render).
 
-Future Improvements
--------------------
+**Setup local Ollama:**
+1. Download Ollama and start the service:
+   ```bash
+   ollama serve
+   ollama run phi3
+   ```
 
-| Focus | Priority |
-|---|---:|
-| Persistence normalization (DB sync) | High |
-| Validation DSL hardening & testing | High |
-| Full AI cache reuse & eviction policies | Medium |
-| Background task workers (Celery/Redis) | Medium |
-| RBAC / Auth (fine-grained) | High |
-| Larger dataset optimization (parquet/partitioning) | Medium |
-| CI/CD & test coverage expansion | High |
+**Setup Gemini API Failover (Local & Deployed):**
+1. Create a `.env` file in the project root directory.
+2. Add your Gemini API key:
+   ```env
+   GEMINI_API_KEY=your_gemini_api_key_here
+   ```
+   *(For production deployments, configure `GEMINI_API_KEY` under the Render Environment Variables tab).*
 
-Footer
-------
+Replace `<REPO_URL>` with this repository's clone URL or use your local copy.
 
-Built to explore survey-grade analytics, statistical processing, AI-assisted interpretation, and version-aware data engineering workflows.
+<!-- ## Engineering highlights
 
-## This Project is still under minor improvements and bug/error clearances so kindly don't clone the project and run, 
-Thank you for your understanding!
+- Explainable AI: statistical engines + Ollama LLMs with SQLite caching for fast, explainable recommendations.
+- Version lineage: DAG-based versioning with atomic, single-click rollbacks.
+- Async reporting: PDF generation runs in background tasks to keep APIs responsive.
+- Storage reconciliation: automated DB↔disk audits and healing for snapshot integrity.
+- Runtime safety: strict input/row validation and memory-safe dataframe parsing.
+
+--- -->
+
+<!-- ## Showcase & portfolio
+
+- Full-stack: React + FastAPI with typed DTOs (Pydantic).
+- Data engineering: Pandas pipelines, outlier detection, and IPF weighting.
+- Orchestration: background tasks, snapshot lineage, and secure exports.
+- Local LLMs: Ollama integration with caching for explainability.
+- QA: Playwright end-to-end tests and Pytest unit coverage. -->

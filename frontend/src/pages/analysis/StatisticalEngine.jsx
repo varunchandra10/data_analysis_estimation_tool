@@ -1,6 +1,5 @@
 import React from 'react';
-import AnalyticsDashboard from '../../components/AnalyticsDashboard';
+import AnalyticsDashboardContainer from '../../components/AnalyticsDashboardContainer';
 
-export default function StatisticalEngine(props) {
-  return <AnalyticsDashboard {...props} />;
-}
+export default function StatisticalEngine() {
+  return <AnalyticsDashboardContainer />;}

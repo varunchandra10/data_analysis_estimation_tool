@@ -1,6 +1,7 @@
 import React from 'react';
-import { Menu, Activity, Sparkles, LogOut } from 'lucide-react';
+import { Menu, Activity, Sparkles, LogOut, Sun, Moon } from 'lucide-react';
 import ReportGenerator from '../ReportGenerator';
+import { useTheme } from '../../context/ThemeContext';
 
 export default function Navbar({
   datasetData,
@@ -15,6 +16,7 @@ export default function Navbar({
   analyticsViewData,
 }) {
   if (!datasetData) return null;
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <header className="border-b border-slate-900 bg-slate-950 sticky top-0 z-[60] w-full select-none">
@@ -49,7 +51,7 @@ export default function Navbar({
               {aiLoading ? 'NEURAL_ENGINE_ACTIVE' : 'MODEL_READY'}
             </span>
           </div>
-          <div className="h-4 w-px bg-slate-900 hidden md:block" />
+          <div className="h-4 w-px hidden md:block" style={{ backgroundColor: theme === 'dark' ? 'rgb(15, 23, 42)' : 'rgb(15, 23, 42)' }} />
           <ReportGenerator
             datasetData={datasetData}
             aiResults={aiResults}
@@ -59,7 +61,15 @@ export default function Navbar({
             duplicateResult={duplicateResult}
             analyticsViewData={analyticsViewData}
           />
-          <div className="h-4 w-px bg-slate-900" />
+          <div className="h-4 w-px" style={{ backgroundColor: theme === 'dark' ? 'rgb(15, 23, 42)' : 'rgb(15, 23, 42)' }} />
+          <button
+            onClick={toggleTheme}
+            className="inline-flex items-center justify-center p-1.5 rounded-sm border border-slate-850 hover:border-slate-700 bg-slate-900 text-slate-400 hover:text-slate-200 transition-all hover:bg-slate-800"
+            title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          >
+            {theme === 'dark' ? <Sun size={13} /> : <Moon size={13} />}
+          </button>
+          <div className="h-4 w-px" style={{ backgroundColor: theme === 'dark' ? 'rgb(15, 23, 42)' : 'rgb(15, 23, 42)' }} />
           <button
             onClick={onReset}
             className="inline-flex items-center gap-2 rounded-sm border border-red-900/30 bg-red-950/10 px-3 py-1 text-[11px] font-bold text-red-400 uppercase tracking-wide transition hover:bg-red-950/30 hover:border-red-900/60 active:scale-[0.98]"

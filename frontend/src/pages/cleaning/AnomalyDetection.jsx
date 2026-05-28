@@ -1,6 +1,6 @@
 import React from 'react';
-import OutlierPanel from '../../components/cleaning/outlier_detection/OutlierPanel';
+import OutlierContainer from '../../components/cleaning/outlier_detection/OutlierContainer';
 
-export default function AnomalyDetection(props) {
-  return <OutlierPanel {...props} />;
+export default function AnomalyDetection() {
+  return <OutlierContainer />;
 }

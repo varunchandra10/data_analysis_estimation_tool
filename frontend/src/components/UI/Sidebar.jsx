@@ -1,8 +1,12 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { X } from 'lucide-react';
+import { useTheme } from '../../context/ThemeContext';
 
 export default function Sidebar({ datasetData, navItems, activeTab, onTabChange, isMobileMenuOpen, setIsMobileMenuOpen }) {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
   if (!datasetData) return null;
 
   const handleMobileItemClick = (id) => {
@@ -13,8 +17,8 @@ export default function Sidebar({ datasetData, navItems, activeTab, onTabChange,
   return (
     <>
       {/* ===================== DESKTOP WORKSPACE SIDEBAR ===================== */}
-      <aside className="hidden lg:flex w-64 h-screen border-r border-slate-900 bg-slate-950 p-4 flex flex-col justify-between shrink-0 select-none font-mono transition-all duration-300 ease-in-out sticky top-0">
-        <div className="space-y-4">
+      <aside className="hidden lg:flex w-64 border-r border-slate-900 bg-slate-950 p-4 flex flex-col justify-between shrink-0 select-none font-mono transition-all duration-300 ease-in-out sticky top-0">
+          <div className="space-y-3">
           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] px-2">
             ANALYSIS_PIPELINE
           </p>
@@ -42,16 +46,16 @@ export default function Sidebar({ datasetData, navItems, activeTab, onTabChange,
         </div>
 
         {/* METADATA SYSTEM RUNTIME STORAGE PIPELINE */}
-        <div className="mt-auto pt-4 border-t border-slate-900/60">
-          <div className="p-3 bg-slate-950 border border-slate-900 rounded-sm shadow-sm hover:border-slate-800 transition-all duration-300">
+        <div className="mt-2 pt-2 border-t" style={{ borderColor: isDark ? 'rgba(15, 23, 42, 0.6)' : 'var(--border-color)' }}>
+          <div className="p-2.5 rounded-sm shadow-sm transition-all duration-300" style={{ backgroundColor: isDark ? 'var(--bg-primary)' : 'var(--bg-secondary)', border: '1px solid', borderColor: isDark ? 'rgba(15, 23, 42, 0.95)' : 'var(--border-color)' }}>
             <div className="flex items-center gap-2 mb-2">
               <span className="relative flex h-1.5 w-1.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
               </span>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">SYSTEM_STATUS</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: isDark ? 'var(--text-muted)' : 'var(--text-secondary)' }}>SYSTEM_STATUS</p>
             </div>
-            <p className="text-[11px] font-semibold text-slate-300 truncate tracking-tight bg-slate-900/40 px-1.5 py-1 rounded-sm border border-slate-900/40 transition-colors duration-200">
+            <p className="text-[11px] font-semibold truncate tracking-tight px-1.5 py-1 rounded-sm border transition-colors duration-200" style={{ color: isDark ? 'var(--text-primary)' : 'var(--text-primary)', backgroundColor: isDark ? 'rgba(15, 23, 42, 0.55)' : 'rgba(241, 245, 249, 0.95)', borderColor: isDark ? 'rgba(15, 23, 42, 0.4)' : 'var(--border-color)' }}>
               {datasetData.metadata.filename}
             </p>
           </div>
@@ -67,7 +71,8 @@ export default function Sidebar({ datasetData, navItems, activeTab, onTabChange,
       >
         {/* Backdrop Blur Fade Overlay - Restricted below the header area */}
         <div 
-          className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity duration-300 ease-in-out"
+          className="absolute inset-0 backdrop-blur-[1px] transition-opacity duration-300 ease-in-out"
+          style={{ backgroundColor: isDark ? 'rgba(2, 6, 23, 0.22)' : 'rgba(15, 23, 42, 0.10)' }}
           onClick={() => setIsMobileMenuOpen(false)} 
         />
         

@@ -1,18 +1,20 @@
 import React from 'react';
-import VersioningPanel from '../../components/VersioningPanel';
-import DatasetComparison from '../../components/DatasetComparison';
-import QualityScore from '../../components/QualityScore';
-import ReportPanel from '../../components/ReportPanel';
-import ExportPanel from '../../components/ExportPanel';
+import VersioningContainer from '../../components/VersioningContainer';
+import DatasetComparisonContainer from '../../components/DatasetComparisonContainer';
+import QualityScoreContainer from '../../components/QualityScoreContainer';
+import ReportContainer from '../../components/ReportContainer';
+import ExportContainer from '../../components/ExportContainer';
 
-export default function VersionControl(props) {
+export default function VersionControl() {
   return (
-    <div className="space-y-6">
-      <VersioningPanel {...props} />
-      <DatasetComparison currentDataset={props.data} />
-      <QualityScore versionName={props.data?.version || 'raw'} datasetName={props.data?.dataset_name || props.data?.metadata?.dataset_name} />
-      <ReportPanel versionName={props.data?.version || 'raw'} datasetName={props.data?.dataset_name || props.data?.metadata?.dataset_name} />
-      <ExportPanel datasetData={props.data} />
+    <div className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden px-4 py-6 sm:px-6 lg:px-8">
+      <div className="space-y-6">
+      <VersioningContainer />
+      <DatasetComparisonContainer />
+      <QualityScoreContainer />
+      <ReportContainer />
+      <ExportContainer />
+      </div>
     </div>
   );
 }

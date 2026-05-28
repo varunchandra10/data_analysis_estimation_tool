@@ -1,6 +1,4 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
-import { apiUrl } from "../../../api/config";
+import React from "react";
 import { 
   ShieldCheck, 
   BrainCircuit, 
@@ -14,80 +12,43 @@ import {
   Loader2,
   Table as TableIcon,
   ChevronRight,
-  Database,
-  ArrowRight
+  Database
 } from "lucide-react";
+import { useAI } from "../../../hooks/useAI";
+import AIInsightCard from "../../common/AIInsightCard";
+import InfoTooltip from "../../UI/InfoTooltip";
+import { getTooltipContent } from "../../../utils/tooltipContent";
 
-const RuleValidationPanel = ({ data, aiInsights = [] }) => {
+const RuleValidationPanel = ({
+  data,
+  aiInsights = [],
+  rules = [],
+  result = null,
+  loading = false,
+  suggestions = [],
+  suggestionLoading = false,
+  suggestionError = '',
+  onAddSimpleRule,
+  onRemoveRule,
+  onUpdateRule,
+  onRunValidation,
+  onSuggestRules
+}) => {
+  const {
+    explanations,
+    loadingExplanations,
+    explanationsError,
+    explanationsCacheUsed,
+    fetchAIExplanations
+  } = useAI();
+
+  const validationExplanation = explanations?.summary_explanations?.validation_ai_explanation;
+
   if (!data) return null;
 
   const { metadata, schema } = data;
-  const [rules, setRules] = useState([]);
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [suggestions, setSuggestions] = useState([]);
-  const [suggestionLoading, setSuggestionLoading] = useState(false);
-  const [suggestionError, setSuggestionError] = useState('');
-
-  useEffect(() => {
-    setSuggestions([]);
-    setSuggestionError('');
-  }, [metadata.file_path]);
-
   const visibleInsights = suggestions.length > 0 ? suggestions : aiInsights;
-
-  const addSimpleRule = (initialValues = {}) => {
-    setRules(prev => ([
-      ...prev,
-      {
-        type: "simple",
-        column: initialValues.column || "",
-        operator: initialValues.operator || ">=",
-        value: initialValues.value || "",
-        severity: initialValues.severity || "medium"
-      }
-    ]));
-  };
-
-  const removeRule = (index) => {
-    setRules(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const updateRule = (index, field, value) => {
-    const updated = [...rules];
-    updated[index][field] = value;
-    setRules(updated);
-  };
-
-  const runValidation = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.post(apiUrl("/api/validation/run"), {
-        file_path: metadata.file_path,
-        rules
-      });
-      setResult(response.data);
-    } catch (err) {
-      console.error("Validation Error:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const suggestRules = async () => {
-    setSuggestionLoading(true);
-    setSuggestionError('');
-    try {
-      const response = await axios.post(apiUrl("/api/validation/suggest"), {
-        file_path: metadata.file_path,
-      });
-      setSuggestions(response.data?.suggestions || []);
-    } catch (err) {
-      setSuggestionError(err.response?.data?.detail || err.message || 'Failed to suggest validation rules');
-    } finally {
-      setSuggestionLoading(false);
-    }
-  };
+  const violations = Array.isArray(result?.violations) ? result.violations : [];
 
   return (
     <div className="space-y-6 antialiased text-slate-200 font-sans max-w-[1600px] mx-auto pb-12 px-4 sm:px-6 selection:bg-slate-800">
@@ -115,6 +76,14 @@ const RuleValidationPanel = ({ data, aiInsights = [] }) => {
                   ? "ML models have inferred semantic constraints based on column distribution and headers." 
                   : "Manual Constraint Definition: Specify deterministic logic for cross-field validation."}
               </p>
+              <AIInsightCard
+                title="Validation Reasoning"
+                explanation={validationExplanation}
+                loading={loadingExplanations}
+                error={explanationsError}
+                cacheUsed={explanationsCacheUsed}
+                onRefresh={fetchAIExplanations}
+              />
             </div>
           </div>
           {visibleInsights && visibleInsights.length > 0 && (
@@ -137,7 +106,10 @@ const RuleValidationPanel = ({ data, aiInsights = [] }) => {
               <ShieldCheck size={16} />
             </div>
             <div>
-              <h2 className="text-sm font-bold tracking-tight text-slate-200 uppercase tracking-wide font-mono">Validation Workbench</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold tracking-tight text-slate-200 uppercase tracking-wide font-mono">Validation Workbench</h2>
+                <InfoTooltip {...getTooltipContent('validationWorkbench')} iconSize={12} className="h-4 w-4" />
+              </div>
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-[9px] font-mono font-bold bg-slate-950 border border-slate-900 px-2 py-0.5 rounded text-slate-500 uppercase">Module: Logic_Guard_v3</span>
                 <ChevronRight size={12} className="text-slate-700" />
@@ -147,18 +119,22 @@ const RuleValidationPanel = ({ data, aiInsights = [] }) => {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={suggestRules}
+              onClick={onSuggestRules}
+              data-testid="validation-suggest-btn"
               disabled={suggestionLoading}
               className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-100 px-4 py-2 rounded-md text-xs font-bold uppercase tracking-wide transition-all shadow-md active:scale-95 font-mono"
             >
               <BrainCircuit size={14} /> {suggestionLoading ? 'Suggesting...' : 'Suggest Rules'}
             </button>
+            <InfoTooltip {...getTooltipContent('suggestRules')} iconSize={12} className="h-5 w-5 self-center" />
             <button
-              onClick={() => addSimpleRule()}
+              onClick={() => onAddSimpleRule()}
+              data-testid="validation-add-btn"
               className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white px-4 py-2 rounded-md text-xs font-bold uppercase tracking-wide transition-all shadow-md active:scale-95 font-mono"
             >
               <Plus size={14} /> Add Logic
             </button>
+            <InfoTooltip {...getTooltipContent('addLogic')} iconSize={12} className="h-5 w-5 self-center" />
           </div>
         </div>
 
@@ -189,7 +165,7 @@ const RuleValidationPanel = ({ data, aiInsights = [] }) => {
                     </div>
                     {suggestion.operator ? (
                       <button 
-                        onClick={() => addSimpleRule(suggestion)}
+                        onClick={() => onAddSimpleRule(suggestion)}
                         className="w-full text-[10px] font-bold uppercase tracking-wide text-indigo-400 bg-indigo-500/5 hover:bg-indigo-600 border border-indigo-500/10 hover:text-white py-1.5 rounded-md transition-colors font-mono"
                       >
                         Apply Suggestion
@@ -224,7 +200,7 @@ const RuleValidationPanel = ({ data, aiInsights = [] }) => {
                   <div className="w-full md:flex-1">
                     <select
                       value={rule.column}
-                      onChange={(e) => updateRule(idx, "column", e.target.value)}
+                      onChange={(e) => onUpdateRule(idx, "column", e.target.value)}
                       className="w-full h-9 border border-slate-700 bg-slate-950 hover:border-slate-600 rounded-md px-3 text-[11px] font-bold font-mono text-slate-300 focus:border-indigo-500 outline-none transition-colors cursor-pointer"
                     >
                       <option value="" className="text-slate-500">-- FEATURE --</option>
@@ -234,7 +210,7 @@ const RuleValidationPanel = ({ data, aiInsights = [] }) => {
                   <div className="w-full md:w-24">
                     <select
                       value={rule.operator}
-                      onChange={(e) => updateRule(idx, "operator", e.target.value)}
+                      onChange={(e) => onUpdateRule(idx, "operator", e.target.value)}
                       className="w-full h-9 border border-slate-700 bg-slate-950 hover:border-slate-600 rounded-md px-3 text-[11px] font-bold font-mono text-center text-indigo-400 focus:border-indigo-500 outline-none transition-colors cursor-pointer"
                     >
                       {["==", "!=", ">", "<", ">=", "<=", "is_null", "not_null"].map(op => <option key={op} value={op} className="text-slate-200 bg-slate-950">{op}</option>)}
@@ -245,14 +221,14 @@ const RuleValidationPanel = ({ data, aiInsights = [] }) => {
                       type="text"
                       placeholder="Scalar Value"
                       value={rule.value}
-                      onChange={(e) => updateRule(idx, "value", e.target.value)}
+                      onChange={(e) => onUpdateRule(idx, "value", e.target.value)}
                       className="w-full h-9 border border-slate-700 bg-slate-950 hover:border-slate-600 rounded-md px-3 text-[11px] font-mono text-slate-200 focus:border-indigo-500 outline-none placeholder:text-slate-600 shadow-inner"
                     />
                   </div>
                   <div className="w-full md:w-40">
                     <select
                       value={rule.severity}
-                      onChange={(e) => updateRule(idx, "severity", e.target.value)}
+                      onChange={(e) => onUpdateRule(idx, "severity", e.target.value)}
                       className={`w-full h-9 border border-slate-700 bg-slate-950 hover:border-slate-600 rounded-md px-3 text-[10px] font-bold uppercase tracking-wide focus:border-indigo-500 outline-none transition-colors cursor-pointer ${
                         rule.severity === 'high' ? 'text-rose-400' : rule.severity === 'medium' ? 'text-amber-400' : 'text-indigo-400'
                       }`}
@@ -262,7 +238,7 @@ const RuleValidationPanel = ({ data, aiInsights = [] }) => {
                       <option value="high" className="text-rose-400 bg-slate-950">P1: Critical</option>
                     </select>
                   </div>
-                  <button onClick={() => removeRule(idx)} className="p-1.5 text-slate-500 hover:text-rose-400 border border-transparent hover:border-slate-800 hover:bg-slate-950 rounded transition-all opacity-0 group-hover:opacity-100 shrink-0">
+                  <button onClick={() => onRemoveRule(idx)} className="p-1.5 text-slate-500 hover:text-rose-400 border border-transparent hover:border-slate-800 hover:bg-slate-950 rounded transition-all opacity-0 group-hover:opacity-100 shrink-0">
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -271,13 +247,15 @@ const RuleValidationPanel = ({ data, aiInsights = [] }) => {
           )}
 
           <button
-            onClick={runValidation}
+            onClick={onRunValidation}
+            data-testid="validation-run-btn"
             disabled={loading || rules.length === 0}
             className="mt-6 w-full flex items-center justify-center gap-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-950 disabled:text-slate-600 border border-transparent disabled:border-slate-900 text-white px-6 py-3.5 rounded-md font-bold uppercase text-[11px] tracking-wide shadow-md active:scale-95 transition-all font-mono"
           >
             {loading ? <Loader2 className="animate-spin" size={14} /> : <Play size={14} />}
             {loading ? "COMPUTING DEVIANTS..." : "COMMIT BATCH VALIDATION"}
           </button>
+          <InfoTooltip {...getTooltipContent('runValidation')} iconSize={12} className="h-5 w-5" />
         </div>
 
         {/* RESULTS SECTION (DASHBOARD STYLE) */}
@@ -307,10 +285,11 @@ const RuleValidationPanel = ({ data, aiInsights = [] }) => {
                 <div className="flex items-center gap-2.5">
                   <TableIcon size={14} className="text-slate-500" />
                   <h5 className="text-[10px] font-bold uppercase tracking-wider text-slate-300 font-mono">Exception Log Output</h5>
+                  <InfoTooltip {...getTooltipContent('exceptionLog')} iconSize={12} className="h-4 w-4" />
                 </div>
               </div>
 
-              {result.violations.length === 0 ? (
+              {violations.length === 0 ? (
                 <div className="p-16 text-center bg-slate-950/20">
                   <div className="inline-flex p-4 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-4 shadow-md shadow-emerald-500/5">
                     <CheckCircle2 size={32} />
@@ -331,7 +310,7 @@ const RuleValidationPanel = ({ data, aiInsights = [] }) => {
                       </tr>
                     </thead>
                     <tbody className="font-mono text-[11px] divide-y divide-slate-900/40 bg-[#0f172a]/20">
-                      {result.violations.map((v, idx) => (
+                      {violations.map((v, idx) => (
                         <tr key={idx} className="hover:bg-slate-900/40 transition-colors border-b border-slate-900/40">
                           <td className="px-5 py-2.5 font-mono text-slate-500 italic border-r border-slate-900/40 last:border-0">#{v.row_index}</td>
                           <td className="px-5 py-2.5 font-mono font-bold text-slate-300 border-r border-slate-900/40 last:border-0">{v.column || v.target_column}</td>

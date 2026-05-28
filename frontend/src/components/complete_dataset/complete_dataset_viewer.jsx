@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Download, FileSpreadsheet, ChevronLeft, Filter, Eye, Maximize2, Layers, CheckCircle2 } from 'lucide-react';
 import Loader from '../UI/Loader';
-import { fetchFullDatasetPreview } from '../../api/datasets.api';
+import { fetchFullDatasetPreview } from '../../services/api/pipeline.api';
 
 function DatasheetViewer({ datasetId, onBack, initialFileName }) {
   const [data, setData] = useState(null);

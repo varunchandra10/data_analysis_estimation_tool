@@ -1,6 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
-import axios from 'axios';
-import { DEFAULT_PROJECT_ID, apiUrl } from '../api/config';
+import { useMemo } from 'react';
 import {
   AlertTriangle,
   BarChart3,
@@ -24,11 +22,6 @@ import {
   YAxis,
 } from 'recharts';
 
-const DEFAULT_PAIRS = [
-  { label: 'RAW vs CLEANED', left: 'raw', right: 'v1_preprocessed' },
-  { label: 'V2 vs V3', left: 'v2_outliers', right: 'v3_validation' },
-];
-
 const METRIC_META = {
   missing_reduction: { label: 'Missing reduction', color: '#22c55e', icon: Database },
   duplicate_reduction: { label: 'Duplicate reduction', color: '#38bdf8', icon: Layers3 },
@@ -39,10 +32,6 @@ const METRIC_META = {
 function formatDelta(value) {
   if (value === null || value === undefined) return '0';
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value);
-}
-
-function normalizeDatasetName(data) {
-  return data?.metadata?.dataset_name || data?.metadata?.filename?.replace(/\.[^.]+$/, '') || '';
 }
 
 function buildChartRows(result) {
@@ -203,79 +192,14 @@ function ComparisonPanel({ title, result, loading, error }) {
   );
 }
 
-export default function DatasetComparison({ currentDataset }) {
-  const datasetName = useMemo(() => normalizeDatasetName(currentDataset), [currentDataset]);
-  const [versions, setVersions] = useState([]);
-  const [results, setResults] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (!datasetName) return;
-
-    let active = true;
-
-    const loadComparisons = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const versionsResponse = await axios.get(apiUrl('/api/versioning/versions'), {
-          params: DEFAULT_PROJECT_ID ? { project_id: DEFAULT_PROJECT_ID } : {},
-        });
-        const datasetVersions = (versionsResponse.data?.versions || []).filter((item) => item.dataset_name === datasetName);
-        const availableVersions = new Set(datasetVersions.map((item) => item.version));
-        const nextResults = {};
-
-        await Promise.all(
-          DEFAULT_PAIRS.map(async (pair) => {
-            if (!availableVersions.has(pair.left) || !availableVersions.has(pair.right)) {
-              nextResults[pair.label] = null;
-              return;
-            }
-
-            try {
-              const comparisonResponse = await axios.get(apiUrl('/api/versioning/compare'), {
-                params: {
-                  ...(DEFAULT_PROJECT_ID ? { project_id: DEFAULT_PROJECT_ID } : {}),
-                  dataset_name: datasetName,
-                  left_version: pair.left,
-                  right_version: pair.right,
-                },
-              });
-
-              nextResults[pair.label] = comparisonResponse.data?.comparison || null;
-            } catch (pairError) {
-              if (pairError.response?.status === 404) {
-                nextResults[pair.label] = null;
-                return;
-              }
-              throw pairError;
-            }
-          })
-        );
-
-        if (!active) return;
-        setVersions(datasetVersions);
-        setResults(nextResults);
-      } catch (requestError) {
-        if (!active) return;
-        setError(requestError.response?.data?.detail || requestError.message || 'Failed to load dataset comparison.');
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-
-    loadComparisons();
-
-    return () => {
-      active = false;
-    };
-  }, [datasetName]);
-
-  if (!datasetName) {
-    return null;
-  }
-
+export default function DatasetComparison({
+  datasetName,
+  versions = [],
+  results = {},
+  loading,
+  error,
+  defaultPairs = []
+}) {
   return (
     <div className="space-y-5 px-4 sm:px-6 pb-12 max-w-[1600px] mx-auto">
       <div className="rounded-2xl border border-slate-800 bg-[#08101f] p-5 shadow-2xl shadow-slate-950/40">
@@ -309,7 +233,7 @@ export default function DatasetComparison({ currentDataset }) {
       ) : null}
 
       <div className="grid gap-5">
-        {DEFAULT_PAIRS.map((pair) => (
+        {defaultPairs.map((pair) => (
           <ComparisonPanel
             key={pair.label}
             title={pair.label}
@@ -322,3 +246,4 @@ export default function DatasetComparison({ currentDataset }) {
     </div>
   );
 }
+
