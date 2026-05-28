@@ -17,7 +17,17 @@ import StatisticsPanel from './StatisticsPanel';
 const DatasetPreview = ({ data, aiResults }) => {
   const [activeTab, setActiveTab] = useState('schema');
 
-  if (!data || !data.metadata || !data.schema) {
+  const formatCount = (value) => {
+    if (Array.isArray(value)) return value.length.toLocaleString();
+    if (typeof value === 'number') return value.toLocaleString();
+    if (value && typeof value === 'object') {
+      const numericValue = Number(value.rows ?? value.total_rows ?? value.count);
+      return Number.isFinite(numericValue) ? numericValue.toLocaleString() : '0';
+    }
+    return '0';
+  };
+
+  if (!data || !data.metadata) {
     return (
       <div className="w-full flex flex-col items-center justify-center p-24 text-slate-400 bg-slate-950 rounded-lg border border-slate-800 font-sans shadow-inner">
         <Loader2 className="animate-spin mb-4 text-indigo-500" size={24} />
@@ -27,8 +37,16 @@ const DatasetPreview = ({ data, aiResults }) => {
       </div>
     );
   }
-
-  const { metadata, schema, preview, statistics } = data;
+  const { metadata, preview, statistics } = data;
+  const schema = Array.isArray(data.schema) && data.schema.length > 0
+    ? data.schema
+    : (preview && preview.length > 0)
+      ? Object.keys(preview[0]).map((column) => ({
+          column,
+          type: 'Unknown',
+          pandas_dtype: 'unknown',
+        }))
+      : [];
 
   const previewColumns = (preview && preview.length > 0) ? Object.keys(preview[0]) : [];
   const aiRecommendations = aiResults?.recommendations || [];
@@ -62,7 +80,7 @@ const DatasetPreview = ({ data, aiResults }) => {
           <div>
             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">Observations (N)</p>
             <h4 className="text-sm font-semibold text-slate-100 font-mono">
-              {(metadata?.rows ?? 0).toLocaleString()}
+              {formatCount(metadata?.rows)}
             </h4>
           </div>
         </div>
@@ -75,7 +93,7 @@ const DatasetPreview = ({ data, aiResults }) => {
           <div>
             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">Features (P)</p>
             <h4 className="text-sm font-semibold text-slate-100 font-mono">
-              {(metadata?.columns ?? 0).toLocaleString()}
+              {formatCount(metadata?.columns)}
             </h4>
           </div>
         </div>
@@ -334,7 +352,13 @@ const DatasetPreview = ({ data, aiResults }) => {
           {/* ================================================= */}
           {activeTab === 'statistics' && (
             <div className="p-5 bg-slate-950/10">
-              <StatisticsPanel statistics={statistics} />
+              {statistics ? (
+                <StatisticsPanel statistics={statistics} />
+              ) : (
+                <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-8 text-center text-sm text-slate-400">
+                  Descriptive statistics are not available for this dataset version yet.
+                </div>
+              )}
             </div>
           )}
 

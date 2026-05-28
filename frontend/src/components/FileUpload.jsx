@@ -1,8 +1,10 @@
 import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { UploadCloud, Loader2, CheckCircle2, AlertCircle, FileText, Zap, Info } from 'lucide-react';
-import axios from 'axios';
-
+import { UploadCloud, Loader2, CheckCircle2, AlertCircle, FileText, Zap } from 'lucide-react';
+import { uploadDataset } from '../services/api/upload.api';
+import { getDatasetProfile } from '../services/api/statistics.api';
+import InfoTooltip from './UI/InfoTooltip';
+import { getTooltipContent } from '../utils/tooltipContent';
 const FileUpload = ({ onUploadSuccess }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState(null);
@@ -22,24 +24,20 @@ const FileUpload = ({ onUploadSuccess }) => {
 
     try {
       setStage('Uploading dataset');
-      const uploadResponse = await axios.post('/api/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-
-      const uploadedData = uploadResponse.data;
+      const uploadedData = await uploadDataset(formData);
 
       try {
         setStage('Generating statistical profile');
-        const statsResponse = await axios.post('/api/statistics/profile', { file_path: uploadedData.metadata.file_path });
-        uploadedData.statistics = statsResponse.data.stats;
-      } catch (e) {
+        const statsResponse = await getDatasetProfile(uploadedData.metadata.file_path);
+        uploadedData.statistics = statsResponse.stats;
+      } catch {
         // non-fatal, ignore profile errors
       }
 
       onUploadSuccess && onUploadSuccess(uploadedData);
       setStage('Complete');
     } catch (err) {
-      setError(err.response?.data?.detail || err.message || 'Upload failed');
+      setError(err.message || 'Upload failed');
     } finally {
       setIsUploading(false);
       setTimeout(() => setStage(''), 800);
@@ -53,6 +51,7 @@ const FileUpload = ({ onUploadSuccess }) => {
       {/* ===================== BUFFER ZONE / DROPZONE BOX ===================== */}
       <div
         {...getRootProps()}
+        data-testid="upload-dropzone"
         className={`relative group border rounded-sm transition-all duration-200 cursor-pointer overflow-hidden
         ${
           isDragActive
@@ -60,7 +59,7 @@ const FileUpload = ({ onUploadSuccess }) => {
             : 'border-slate-800 bg-slate-950/40 hover:border-slate-700'
         }`}
       >
-        <input {...getInputProps()} />
+        <input {...getInputProps()} data-testid="upload-input" />
         
         <div className="p-12 text-center relative z-10">
           <div className={`mx-auto mb-4 w-12 h-12 rounded-sm border flex items-center justify-center transition-colors duration-200
@@ -72,6 +71,9 @@ const FileUpload = ({ onUploadSuccess }) => {
             <h3 className="text-sm font-semibold font-mono tracking-tight text-slate-200">
               {isDragActive ? 'INITIALIZE_INGESTION_BUFFER' : 'LOAD SURVEY TARGET MATRIX'}
             </h3>
+            <div className="mt-2">
+              <InfoTooltip title="Dataset Ingestion" description="Uploads the source file, then generates the initial schema and statistical profile used across DAET." recommendation="Start here to populate the rest of the dashboard with a real dataset context." iconSize={12} className="h-5 w-5" />
+            </div>
             <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
               Drag file arrays here or click to assign a storage system path. Optimized for flat structural calculations.
             </p>
@@ -79,14 +81,14 @@ const FileUpload = ({ onUploadSuccess }) => {
 
           {/* HIGH-DENSITY INTERFACE SYSTEM TAGS */}
           <div className="mt-6 flex items-center justify-center gap-3 text-[10px] font-mono font-bold text-slate-500 tracking-wider">
-            <span className="flex items-center gap-1.5 border border-slate-900 bg-slate-950 px-2.5 py-1 rounded-sm">
-              <FileText size={11} className="text-slate-400" /> CSV
+            <span className="flex items-center gap-1.5 border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 rounded-sm text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400">
+              <FileText size={11} className="text-emerald-600 dark:text-emerald-400" /> CSV
             </span>
-            <span className="flex items-center gap-1.5 border border-slate-900 bg-slate-950 px-2.5 py-1 rounded-sm">
-              <FileText size={11} className="text-slate-400" /> XLSX
+            <span className="flex items-center gap-1.5 border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 rounded-sm text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-400">
+              <FileText size={11} className="text-emerald-600 dark:text-emerald-400" /> XLSX
             </span>
-            <span className="flex items-center gap-1.5 border border-blue-900/50 bg-blue-950/30 px-2.5 py-1 rounded-sm text-blue-400">
-              <Zap size={11} /> FILE_MAX_BOUNDS
+            <span className="flex items-center gap-1.5 border border-blue-300 bg-blue-100 px-2.5 py-1 rounded-sm text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-400">
+              <Zap size={11} /> MAX_FILE: 1
             </span>
           </div>
         </div>
@@ -120,7 +122,7 @@ const FileUpload = ({ onUploadSuccess }) => {
               <div className="h-full bg-blue-500 animate-pulse w-[65%] rounded-sm shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
             </div>
             <div className="mt-3 flex items-center gap-1.5 text-slate-500 text-[10px] uppercase tracking-wide border-t border-slate-900/60 pt-2.5">
-               <Info size={11} className="text-slate-600" />
+               <InfoTooltip {...getTooltipContent('pipelineRun')} iconSize={11} className="h-4 w-4" />
                <span>Metadata tracking: <span className="text-slate-400">{fileInfo?.name}</span></span>
             </div>
           </div>

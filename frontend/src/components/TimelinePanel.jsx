@@ -1,7 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import axios from 'axios';
+import { useMemo, useState } from 'react';
 import { Activity, Clock3, Layers3, Search, ChevronRight, FileClock, ShieldCheck } from 'lucide-react';
-import { apiUrl } from '../api/config';
 
 function formatTimestamp(value) {
   if (!value) return 'Unknown time';
@@ -90,41 +88,14 @@ function TimelineEvent({ event, index, isLast }) {
   );
 }
 
-export default function TimelinePanel({ data }) {
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+export default function TimelinePanel({
+  datasetName,
+  logs = [],
+  loading,
+  error
+}) {
   const [searchTerm, setSearchTerm] = useState('');
 
-  const datasetName = data?.metadata?.dataset_name || data?.metadata?.filename || data?.metadata?.file_path?.split(/[\\/]/).pop();
-
-  useEffect(() => {
-    if (!datasetName) return;
-
-    let active = true;
-
-    const fetchLogs = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const response = await axios.get(apiUrl(`/api/logs/${datasetName}`));
-        const ordered = (response.data?.logs || []).slice().reverse();
-        if (!active) return;
-        setLogs(ordered);
-      } catch (err) {
-        if (!active) return;
-        setError(err.response?.data?.detail || err.message || 'Failed to load audit timeline.');
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-
-    fetchLogs();
-
-    return () => {
-      active = false;
-    };
-  }, [datasetName]);
 
   const filteredLogs = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();

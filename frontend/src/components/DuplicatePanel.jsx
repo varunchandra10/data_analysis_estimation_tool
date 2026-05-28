@@ -1,38 +1,31 @@
-import React, { useState } from "react";
-import axios from "axios";
-import { apiUrl } from "../api/config";
+import React from "react";
 import { 
-  Copy, Trash2, CheckCircle2, AlertCircle, BarChart3, 
-  PieChart as PieIcon, Database, BrainCircuit, Bot, 
-  Zap, ShieldCheck, ChevronRight, Activity, Maximize2,
-  Fingerprint, Cpu, Info, Search, Terminal
+  Trash2, CheckCircle2, AlertCircle,
+  Database, BrainCircuit, Bot, 
+  Zap, ShieldCheck, Activity, Maximize2,
+  Fingerprint, Cpu, Search, Terminal
 } from "lucide-react";
 
 import PieChartComponent from "./charts/PieChartComponent";
 import BarChartComponent from "./charts/BarChartComponent";
+import InfoTooltip from "./UI/InfoTooltip";
+import { getTooltipContent } from "../utils/tooltipContent";
 
-const DuplicatePanel = ({ data, aiInsights = [], onProcessComplete }) => {
+const DuplicatePanel = ({
+  data,
+  aiInsights = [],
+  strategy,
+  setStrategy,
+  result,
+  loading,
+  onProcess
+}) => {
   if (!data) return null;
 
   const { metadata } = data;
-  const [strategy, setStrategy] = useState("detect");
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
 
-  const handleProcess = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.post(
-        apiUrl("/api/duplicates/process"),
-        { file_path: metadata.file_path, strategy }
-      );
-      setResult(response.data);
-      if (onProcessComplete) onProcessComplete(response.data);
-    } catch (err) {
-      console.error("Processing Error:", err);
-    } finally {
-      setLoading(false);
-    }
+  const handleProcess = () => {
+    onProcess();
   };
 
   const pieChartData = result ? [
@@ -196,6 +189,7 @@ const DuplicatePanel = ({ data, aiInsights = [], onProcessComplete }) => {
                 <div key={i} className="bg-[#0b1329]/60 border-2 border-slate-800 rounded-xl p-4 relative overflow-hidden group shadow-md">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider leading-none">{kpi.label}</span>
+                    <InfoTooltip {...getTooltipContent(kpi.label === "Observations" ? 'observations' : kpi.label === "Entropy Detected" ? 'duplicateRows' : 'qualityScore')} iconSize={12} className="h-4 w-4" />
                     <kpi.icon size={13} className={kpi.color} />
                   </div>
                   <h3 className="text-2xl font-mono font-bold text-slate-100 tabular-nums tracking-tight">
@@ -218,7 +212,7 @@ const DuplicatePanel = ({ data, aiInsights = [], onProcessComplete }) => {
                     <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-200 font-mono">Redundancy Mix</h3>
                     <p className="text-[11px] text-slate-500 font-medium font-sans">Proportional entropy segmentations</p>
                   </div>
-                  <Info size={14} className="text-slate-600" />
+                  <InfoTooltip title="Redundancy Mix" description="Shows the balance between duplicate and unique rows after the deduplication scan." recommendation="Use it to explain the scale of redundancy before applying removals." iconSize={14} className="h-5 w-5" />
                 </div>
                 <div className="h-[320px] w-full flex items-center justify-center">
                   {/* Pulls directly from the unified palette fixed in outlier stage */}

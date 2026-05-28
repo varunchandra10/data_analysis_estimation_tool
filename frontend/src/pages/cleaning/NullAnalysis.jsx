@@ -1,6 +1,6 @@
 import React from 'react';
-import MissingValuePanel from '../../components/cleaning/Imputation/MissingValuePanel';
+import MissingValueContainer from '../../components/cleaning/Imputation/MissingValueContainer';
 
-export default function NullAnalysis(props) {
-  return <MissingValuePanel {...props} />;
+export default function NullAnalysis() {
+  return <MissingValueContainer />;
 }

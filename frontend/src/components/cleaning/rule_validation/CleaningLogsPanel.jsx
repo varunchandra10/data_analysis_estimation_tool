@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
-import { apiUrl } from "../../../api/config";
+import { getTimelineLogs } from "../../../services/api/versioning.api";
 import { 
   History, 
   Search, 
@@ -28,8 +27,9 @@ const CleaningLogsPanel = ({ data }) => {
     const fetchLogs = async () => {
       setLoading(true);
       try {
-        const response = await axios.get(apiUrl(`/api/logs/${metadata.filename}`));
-        setLogs(response.data.logs?.reverse() || []);
+        const response = await getTimelineLogs(metadata.filename);
+        const nextLogs = response?.logs || response?.data?.logs || [];
+        setLogs([...nextLogs].reverse());
       } catch (err) {
         console.error("Failed to fetch logs:", err);
       } finally {

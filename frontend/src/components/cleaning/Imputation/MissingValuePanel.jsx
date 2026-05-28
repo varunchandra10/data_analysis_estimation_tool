@@ -1,6 +1,4 @@
 import React, { useState } from "react";
-import axios from "axios";
-import { apiUrl } from "../../../api/config";
 import { 
   AlertCircle, 
   CheckCircle2, 
@@ -23,29 +21,48 @@ import {
 import BarChartComponent from "../../charts/BarChartComponent";
 import PieChartComponent from "../../charts/PieChartComponent";
 import GraphEnclosure from "../../UI/graphModal";
+import { useAI } from "../../../hooks/useAI";
+import AIInsightCard from "../../common/AIInsightCard";
+import InfoTooltip from "../../UI/InfoTooltip";
+import { getTooltipContent } from "../../../utils/tooltipContent";
 
-const MissingValuePanel = ({ data, aiInsights = [], onCleaningComplete }) => {
+const MissingValuePanel = ({ data, aiInsights = [], onApplyCleaning, loading }) => {
+  const [strategies, setStrategies] = useState({});
+
+  const {
+    explanations,
+    loadingExplanations,
+    explanationsError,
+    explanationsCacheUsed,
+    fetchAIExplanations
+  } = useAI();
+
+  const getMissingValueExplanation = (columnName) => {
+    const colExp = explanations?.explanations?.find(exp => exp.column === columnName);
+    return colExp?.missing_value_ai_explanation;
+  };
+
   if (!data) return null;
 
   const { metadata, schema } = data;
-  const [strategies, setStrategies] = useState({});
-  const [loading, setLoading] = useState(false);
+  const normalizedSchema = Array.isArray(schema) ? schema : [];
+  const nullCounts = metadata?.null_counts || {};
 
-  const columnsWithNulls = schema.filter(
-    (col) => metadata.null_counts[col.column] > 0
+  const columnsWithNulls = normalizedSchema.filter(
+    (col) => (nullCounts[col.column] || 0) > 0
   );
 
-  const totalMissing = Object.values(metadata.null_counts).reduce(
+  const totalMissing = Object.values(nullCounts).reduce(
     (acc, val) => acc + val,
     0
   );
-  const totalCells = metadata.rows * metadata.columns;
+  const totalCells = (metadata?.rows || 0) * (metadata?.columns || 0);
   const totalAvailable = totalCells - totalMissing;
   const completenessRate = ((totalAvailable / totalCells) * 100).toFixed(2);
 
   const missingBarData = columnsWithNulls.map((col) => ({
     column: col.column,
-    missing: metadata.null_counts[col.column],
+    missing: nullCounts[col.column] || 0,
   }));
 
   const missingPieData = [
@@ -57,19 +74,8 @@ const MissingValuePanel = ({ data, aiInsights = [], onCleaningComplete }) => {
     setStrategies((prev) => ({ ...prev, [column]: strategy }));
   };
 
-  const handleApplyCleaning = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.post(
-        apiUrl("/api/clean/missing-values"),
-        { file_path: metadata.file_path, strategies }
-      );
-      onCleaningComplete(response.data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+  const handleApplyCleaning = () => {
+    onApplyCleaning(strategies);
   };
 
   return (
@@ -84,8 +90,11 @@ const MissingValuePanel = ({ data, aiInsights = [], onCleaningComplete }) => {
             <FlaskConical size={14} className="text-indigo-400" />
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Diagnostic Module</span>
           </div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-100 font-mono">Null Observation Audit</h2>
-          <p className="text-xs text-slate-400 font-medium mt-1">Detecting and remediating structural voids in dataset: <span className="font-mono text-indigo-400">{metadata.filename}</span></p>
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl font-bold tracking-tight text-slate-100 font-mono">Null Observation Audit</h2>
+            <InfoTooltip {...getTooltipContent('missingAudit')} iconSize={14} className="h-5 w-5" />
+          </div>
+          <p className="text-xs text-slate-400 font-medium mt-1">Detecting and remediating structural voids in dataset: <span className="font-mono text-indigo-400">{metadata?.filename || 'Unknown Dataset'}</span></p>
         </div>
         
         <div className="flex items-center gap-3 bg-[#0b1329] px-4 py-2 rounded-md border border-slate-900">
@@ -144,13 +153,14 @@ const MissingValuePanel = ({ data, aiInsights = [], onCleaningComplete }) => {
         {/* TABULAR METRICS */}
         <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-900 border-b border-slate-900 bg-[#0b1329]/40">
           {[
-            { label: "Missing Observations", value: totalMissing.toLocaleString(), sub: "Total Δ Gaps", icon: AlertCircle, color: "text-rose-400" },
-            { label: "Impacted Dimensions", value: columnsWithNulls.length, sub: "High Variance Columns", icon: Database, color: "text-indigo-400" },
-            { label: "Completeness Score", value: `${completenessRate}%`, sub: "Dataset Integrity", icon: Activity, color: "text-emerald-400" }
+            { label: "Missing Observations", value: totalMissing.toLocaleString(), sub: "Total Δ Gaps", icon: AlertCircle, color: "text-rose-400", tooltipKey: "missingObservations" },
+            { label: "Impacted Dimensions", value: columnsWithNulls.length, sub: "High Variance Columns", icon: Database, color: "text-indigo-400", tooltipKey: "impactedDimensions" },
+            { label: "Completeness Score", value: `${completenessRate}%`, sub: "Dataset Integrity", icon: Activity, color: "text-emerald-400", tooltipKey: "completenessScore" }
           ].map((kpi, i) => (
             <div key={i} className="p-6">
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-2">
                 <kpi.icon size={13} className={kpi.color} /> {kpi.label}
+                <InfoTooltip {...getTooltipContent(kpi.tooltipKey)} iconSize={12} className="h-4 w-4" />
               </p>
               <div className="flex items-baseline gap-2">
                  <h3 className="text-3xl font-mono font-bold tracking-tight text-slate-100">{kpi.value}</h3>
@@ -173,7 +183,7 @@ const MissingValuePanel = ({ data, aiInsights = [], onCleaningComplete }) => {
             <GraphEnclosure
               title="Frequency Distribution"
               subtitle="Null density across identified vector headers"
-              tooltipText="Analyzes granular text features. Bottom graph padding properties scale automatically to block text overlap."
+              tooltip={getTooltipContent('nullDistribution')}
               icon={BarChart3}
               hasData={missingBarData && missingBarData.length > 0}
             >
@@ -188,6 +198,7 @@ const MissingValuePanel = ({ data, aiInsights = [], onCleaningComplete }) => {
             <GraphEnclosure
               title="Integrity Ratio"
               subtitle="Proportional state metrics"
+              tooltip={getTooltipContent('integrityRatio')}
               icon={PieChart}
               hasData={missingPieData && missingPieData.length > 0}
             >
@@ -215,6 +226,7 @@ const MissingValuePanel = ({ data, aiInsights = [], onCleaningComplete }) => {
               <div className="flex items-center gap-2">
                   <Settings2 size={15} className="text-indigo-400" />
                   <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider font-mono">Remediation Workflow</h4>
+                  <InfoTooltip {...getTooltipContent('remediationWorkflow')} iconSize={12} className="h-4 w-4" />
               </div>
               <div className="text-[10px] font-mono text-slate-500 uppercase font-bold tracking-wider bg-slate-950 px-2 py-0.5 rounded border border-slate-900">
                 Manual Override: Active
@@ -251,8 +263,8 @@ const MissingValuePanel = ({ data, aiInsights = [], onCleaningComplete }) => {
                             </span>
                           </div>
                           <div className="flex items-center gap-4 mt-1">
-                             <div className="flex items-center gap-1.5 text-[11px] font-mono font-medium text-slate-500">
-                                <AlertCircle size={11} className="text-rose-400/70" /> {metadata.null_counts[col.column].toLocaleString()} Observations
+                              <div className="flex items-center gap-1.5 text-[11px] font-mono font-medium text-slate-500">
+                                <AlertCircle size={11} className="text-rose-400/70" /> {(nullCounts[col.column] || 0).toLocaleString()} Observations
                              </div>
                           </div>
                         </div>
@@ -265,7 +277,7 @@ const MissingValuePanel = ({ data, aiInsights = [], onCleaningComplete }) => {
                           value={strategies[col.column] || ""}
                           onChange={(e) => handleStrategyChange(col.column, e.target.value)}
                         >
-                          <option value="" className="text-slate-500">— Select Strategy —</option>
+                          <option value="" className="text-slate-500">- Select Strategy -</option>
                           <option value="drop" className="text-slate-200 bg-slate-950">Drop Observations</option>
                           {col.type === "Numerical" && (
                             <>
@@ -297,6 +309,14 @@ const MissingValuePanel = ({ data, aiInsights = [], onCleaningComplete }) => {
                                 <Zap size={11} fill="currentColor" className="text-amber-500" /> {columnInsight.warning}
                               </div>
                             )}
+                            <AIInsightCard
+                              title="Method Explanation"
+                              explanation={getMissingValueExplanation(col.column)}
+                              loading={loadingExplanations}
+                              error={explanationsError}
+                              cacheUsed={explanationsCacheUsed}
+                              onRefresh={fetchAIExplanations}
+                            />
                           </div>
                         </div>
                       </div>
@@ -324,6 +344,7 @@ const MissingValuePanel = ({ data, aiInsights = [], onCleaningComplete }) => {
             </div>
             <button
               onClick={handleApplyCleaning}
+              data-testid="clean-btn"
               disabled={loading || Object.keys(strategies).length === 0}
               className="w-full lg:w-auto flex items-center justify-center gap-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-950 disabled:text-slate-600 border border-transparent disabled:border-slate-900 text-white px-6 py-3 rounded-md font-bold uppercase text-[11px] tracking-wide shadow-md active:scale-95 transition-all group font-mono shrink-0"
             >
@@ -334,6 +355,7 @@ const MissingValuePanel = ({ data, aiInsights = [], onCleaningComplete }) => {
               )}
               {loading ? "INITIALIZING STREAMS..." : "COMMIT TRANSFORMATION PIPELINE"}
             </button>
+            <InfoTooltip {...getTooltipContent('applyCleaning')} iconSize={12} className="h-5 w-5" />
           </div>
         )}
       </div>

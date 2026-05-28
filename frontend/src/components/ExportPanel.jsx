@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import axios from 'axios';
 import { Download, Archive, Lock, FileSpreadsheet, FileArchive, FileJson2 } from 'lucide-react';
-import { DEFAULT_PROJECT_ID, apiUrl } from '../api/config';
+import InfoTooltip from './UI/InfoTooltip';
+import { getTooltipContent } from '../utils/tooltipContent';
 
 const FORMATS = [
   { value: 'csv', label: 'CSV', icon: FileJson2, description: 'Portable comma-separated export' },
@@ -10,81 +10,27 @@ const FORMATS = [
   { value: 'encrypted_zip', label: 'Encrypted', icon: Lock, description: 'Encrypted zipped archive' },
 ];
 
-function filenameFromPath(path, fallback = 'dataset') {
-  if (!path) return fallback;
-  const name = path.split(/[\\/]/).pop() || fallback;
-  return name.replace(/\.[^.]+$/, '');
-}
-
-export default function ExportPanel({ datasetData }) {
+export default function ExportPanel({
+  datasetData,
+  loading,
+  archiveLoading,
+  error,
+  message,
+  onExport,
+  onArchive
+}) {
   const [selectedFormat, setSelectedFormat] = useState('csv');
   const [archiveKeepLatest, setArchiveKeepLatest] = useState(2);
-  const [loading, setLoading] = useState(false);
-  const [archiveLoading, setArchiveLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
 
-  const sourcePath = datasetData?.metadata?.file_path || datasetData?.metadata?.filePath || '';
   const datasetName = datasetData?.metadata?.dataset_name || datasetData?.metadata?.filename?.replace(/\.[^.]+$/, '') || 'dataset';
   const exportLabel = useMemo(() => FORMATS.find((item) => item.value === selectedFormat)?.label || 'CSV', [selectedFormat]);
 
-  const downloadExport = async () => {
-    if (!sourcePath) {
-      setError('No dataset file path is available for export.');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-    setMessage('');
-
-    try {
-      const response = await axios.post(
-        apiUrl('/api/versioning/export'),
-        {
-          file_path: sourcePath,
-          dataset_name: datasetName,
-          format: selectedFormat,
-          ...(DEFAULT_PROJECT_ID ? { project_id: DEFAULT_PROJECT_ID } : {}),
-        },
-        { responseType: 'blob' }
-      );
-
-      const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/octet-stream' });
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      const baseName = filenameFromPath(sourcePath, datasetName);
-      link.download = selectedFormat === 'encrypted_zip' ? `${baseName}.zip.enc` : `${baseName}.${selectedFormat}`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(downloadUrl);
-      setMessage(`${exportLabel} export generated successfully.`);
-    } catch (err) {
-      setError(err.response?.data?.detail || err.message || 'Failed to export dataset.');
-    } finally {
-      setLoading(false);
-    }
+  const downloadExport = () => {
+    onExport(selectedFormat);
   };
 
-  const archiveOldVersions = async () => {
-    setArchiveLoading(true);
-    setError('');
-    setMessage('');
-    try {
-      const response = await axios.post(apiUrl('/api/versioning/archive/old'), {
-        ...(DEFAULT_PROJECT_ID ? { project_id: DEFAULT_PROJECT_ID } : {}),
-        keep_latest: archiveKeepLatest,
-        key: undefined,
-      });
-      const archivedCount = response.data?.archived_paths?.length || 0;
-      setMessage(`Archived ${archivedCount} older version${archivedCount === 1 ? '' : 's'}.`);
-    } catch (err) {
-      setError(err.response?.data?.detail || err.message || 'Failed to archive old versions.');
-    } finally {
-      setArchiveLoading(false);
-    }
+  const archiveOldVersions = () => {
+    onArchive(archiveKeepLatest);
   };
 
   return (
@@ -93,6 +39,7 @@ export default function ExportPanel({ datasetData }) {
         <div>
           <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-slate-500">
             <Download size={12} className="text-cyan-400" /> Export & Archival
+            <InfoTooltip {...getTooltipContent('exportFormat')} iconSize={12} className="h-4 w-4" />
           </div>
           <h3 className="mt-1 text-lg font-semibold text-slate-100">Enterprise Dataset Export</h3>
           <p className="mt-1 text-sm text-slate-500">Download the active dataset or archive older versions while preserving lineage metadata.</p>
@@ -126,7 +73,10 @@ export default function ExportPanel({ datasetData }) {
                     </div>
                     <div>
                       <div className="text-sm font-semibold text-slate-100">{format.label}</div>
-                      <div className="text-xs text-slate-500">{format.description}</div>
+                      <div className="flex items-center gap-1 text-xs text-slate-500">
+                        <span>{format.description}</span>
+                        {format.value === 'encrypted_zip' && <InfoTooltip {...getTooltipContent('encryptedExport')} iconSize={12} className="h-4 w-4" />}
+                      </div>
                     </div>
                   </div>
                 </button>
@@ -136,16 +86,21 @@ export default function ExportPanel({ datasetData }) {
 
           <button
             onClick={downloadExport}
+            data-testid="export-btn"
             disabled={loading}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/20 transition hover:scale-[1.01] disabled:opacity-50"
-          >
-            <Download size={16} /> {loading ? 'Exporting...' : `Download ${exportLabel}`}
-          </button>
+          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-cyan-950/20 transition hover:scale-[1.01] disabled:opacity-50"
+        >
+          <Download size={16} /> {loading ? 'Exporting...' : `Download ${exportLabel}`}
+        </button>
+        <div className="mt-2">
+          <InfoTooltip {...getTooltipContent('exportAction')} iconSize={12} className="h-5 w-5" />
         </div>
+      </div>
 
         <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
           <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-slate-500">
             <Archive size={12} className="text-violet-400" /> Version Archival
+            <InfoTooltip {...getTooltipContent('archiveVersions')} iconSize={12} className="h-4 w-4" />
           </div>
           <div className="mt-3 text-sm text-slate-400">Compress and archive older versions while retaining the latest {archiveKeepLatest} live entries.</div>
           <label className="mt-4 block text-xs uppercase tracking-[0.18em] text-slate-500">Keep Latest</label>
@@ -159,11 +114,12 @@ export default function ExportPanel({ datasetData }) {
 
           <button
             onClick={archiveOldVersions}
+            data-testid="archive-btn"
             disabled={archiveLoading}
-            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-3 text-sm font-semibold text-violet-200 transition hover:bg-violet-500/15 disabled:opacity-50"
-          >
-            <Archive size={16} /> {archiveLoading ? 'Archiving...' : 'Archive Old Versions'}
-          </button>
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-3 text-sm font-semibold text-violet-200 transition hover:bg-violet-500/15 disabled:opacity-50"
+        >
+          <Archive size={16} /> {archiveLoading ? 'Archiving...' : 'Archive Old Versions'}
+        </button>
         </div>
       </div>
     </section>

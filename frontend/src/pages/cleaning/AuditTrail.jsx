@@ -1,6 +1,6 @@
 import React from 'react';
-import TimelinePanel from '../../components/TimelinePanel';
+import TimelineContainer from '../../components/TimelineContainer';
 
-export default function AuditTrail(props) {
-  return <TimelinePanel data={props.data} />;
+export default function AuditTrail() {
+  return <TimelineContainer />;
 }

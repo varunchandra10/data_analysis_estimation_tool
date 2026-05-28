@@ -3,8 +3,29 @@ backend/venv/
 ./frontend/node_modules
 git_commands.txt
 /AI_Integration.MD
+deep_audit_report.md
+.env
 
 
-# Ignore backend sources but keep README.md
-/backend/*
-!/backend/README.md
+
+# Backend runtime artifacts
+backend/__pycache__/
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.ruff_cache/
+backend/daet.sqlite3
+backend/logs/
+backend/ai_cache/
+backend/reports/
+backend/exports/
+backend/datasets/archive/
+backend/datasets/*/temp_workspace/
+backend/datasets/*/logs/
+backend/datasets/*/archive/
+backend/datasets/*/versions/
+backend/datasets/*/manifests/
+backend/datasets/*/processed/
+
+# Local environment files
+backend/.env
+backend/venv/

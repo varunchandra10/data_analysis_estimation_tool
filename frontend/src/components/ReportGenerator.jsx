@@ -14,6 +14,7 @@ export default function ReportGenerator({
   const [isOpen, setIsOpen] = useState(false);
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const totalRecords = Number(reportData?.summary?.datasetOverview?.totalRecords ?? 0);
 
   const handleGenerateReport = () => {
     setLoading(true);
@@ -135,7 +136,7 @@ export default function ReportGenerator({
                   <div className="bg-slate-900/40 p-3 rounded border border-slate-800">
                     <p className="text-[10px] text-slate-400 uppercase">Total Records</p>
                     <p className="text-lg font-mono font-bold text-white">
-                      {reportData.summary.datasetOverview.totalRecords.toLocaleString()}
+                      {Number.isFinite(totalRecords) ? totalRecords.toLocaleString() : '0'}
                     </p>
                   </div>
                   <div className="bg-slate-900/40 p-3 rounded border border-slate-800">

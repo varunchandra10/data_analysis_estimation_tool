@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   CheckCircle,
   AlertTriangle,
@@ -12,8 +12,6 @@ import {
   ArrowUpRight,
   Fingerprint,
   RefreshCcw,
-  Terminal,
-  Info,
   Crosshair
 } from "lucide-react";
 
@@ -27,9 +25,9 @@ import BoxPlotComponent from "./charts/BoxPlotComponent";
 import StatisticsPanel from "./StatisticsPanel";
 // import GraphEnclosure from "./GraphEnclosure";
 import GraphEnclosure from "./UI/graphModal";
-import PipelineGraph from "./PipelineGraph";
-import { runFullPipeline, fetchFullDatasetPreview } from "../api/datasets.api";
-
+import PipelineGraph from "./charts/PipelineGraph";
+import InfoTooltip from "./UI/InfoTooltip";
+import { getTooltipContent } from "../utils/tooltipContent";
 const AnalyticsDashboard = ({
   datasetData,
   setDatasetData,
@@ -42,20 +40,21 @@ const AnalyticsDashboard = ({
   duplicateResult,
   setDuplicateResult,
   aiResults,
-  setAIResults
+  setAIResults,
+  pipelineStatus,
+  pipelineResult,
+  isRunningPipeline,
+  onRunFullPipeline
 }) => {
-  const [pipelineStatus, setPipelineStatus] = useState(null);
-  const [pipelineResult, setPipelineResult] = useState(null);
-  const [isRunningPipeline, setIsRunningPipeline] = useState(false);
-
   if (!datasetData) return null;
 
   const { metadata, statistics } = datasetData;
 
   // Analytical metrics logic calculations remain identical
-  const totalMissing = Object.values(metadata.null_counts).reduce((acc, val) => acc + val, 0);
-  const completeness = (((metadata.rows * metadata.columns) - totalMissing) / (metadata.rows * metadata.columns)) * 100;
-  const missingChartData = Object.entries(metadata.null_counts).map(([key, value]) => ({ column: key, missing: value }));
+  const safeNullCounts = metadata?.null_counts || {};
+  const totalMissing = Object.values(safeNullCounts).reduce((acc, val) => acc + val, 0);
+  const completeness = (((metadata.rows * metadata.columns) - totalMissing) / (metadata.rows * metadata.columns)) * 100 || 0;
+  const missingChartData = Object.entries(safeNullCounts).map(([key, value]) => ({ column: key, missing: value }));
   const qualityPieData = [{ name: "Available", value: (metadata.rows * metadata.columns) - totalMissing }, { name: "Missing", value: totalMissing }];
   const workflowData = [
     { step: "Upload", completed: 100 },
@@ -64,9 +63,9 @@ const AnalyticsDashboard = ({
     { step: "Estimation", completed: estimationResult ? 100 : 0 }
   ];
   const validationChartData = validationResult ? [
-    { severity: "Low", count: validationResult.severity_counts.low },
-    { severity: "Medium", count: validationResult.severity_counts.medium },
-    { severity: "High", count: validationResult.severity_counts.high }
+    { severity: "Low",    count: validationResult?.severity_counts?.low    ?? 0 },
+    { severity: "Medium", count: validationResult?.severity_counts?.medium  ?? 0 },
+    { severity: "High",   count: validationResult?.severity_counts?.high    ?? 0 },
   ] : [];
   const weightComparisonData = estimationResult?.visualizations || [];
   const numericalStats = statistics?.numerical || [];
@@ -153,53 +152,6 @@ const AnalyticsDashboard = ({
         },
       ];
 
-  const handleRunFullPipeline = async () => {
-    const filePath = datasetData?.metadata?.file_path || datasetData?.metadata?.filePath;
-    if (!filePath) {
-      setPipelineStatus({ status: "missing_file", message: "Dataset file path is not available." });
-      return;
-    }
-
-    setIsRunningPipeline(true);
-    setPipelineStatus({ status: "running", message: "Pipeline execution started." });
-
-    try {
-      const result = await runFullPipeline(filePath);
-      setPipelineResult(result);
-      setPipelineStatus({
-        status: result?.pipeline_status || "completed",
-        currentVersion: result?.current_version || "N/A",
-        stepsCompleted: result?.steps_completed || [],
-        message: "Full pipeline completed successfully. Refreshing dashboard...",
-      });
-
-      // Update the frontend with the newly processed dataset
-      const finalStage = result.stage_results?.find(s => s.stage === 'weighting' || s.stage === 'validation' || s.stage === 'outliers' || s.stage === 'preprocessing');
-      if (finalStage?.file_path && setDatasetData) {
-        const newData = await fetchFullDatasetPreview(finalStage.file_path);
-        setDatasetData(newData);
-        
-        // Optionally clear the previous partial results so the UI reflects the new baseline
-        if (setValidationResult) setValidationResult(null);
-        if (setEstimationResult) setEstimationResult(null);
-        if (setOutlierResult) setOutlierResult(null);
-        if (setDuplicateResult) setDuplicateResult(null);
-        if (setAIResults) setAIResults(null);
-        
-        setPipelineStatus(prev => ({
-          ...prev,
-          message: "Dashboard successfully updated to latest pipeline version."
-        }));
-      }
-
-    } catch (error) {
-      const detail = error?.response?.data?.detail || error?.message || "Pipeline execution failed.";
-      setPipelineStatus({ status: "failed", message: detail });
-    } finally {
-      setIsRunningPipeline(false);
-    }
-  };
-
   return (
     <div className="space-y-6 mt-4 pb-12 antialiased text-slate-200 font-sans max-w-[1600px] mx-auto px-4 sm:px-6 selection:bg-slate-800">
 
@@ -233,18 +185,21 @@ const AnalyticsDashboard = ({
              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wide mb-0.5 text-right">Processing</p>
              <p className="text-xs font-mono font-bold text-emerald-400 text-right uppercase tracking-tight">Real-time</p>
            </div>
-           <button className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 text-slate-200 hover:text-white rounded-md text-xs font-semibold transition-colors border border-slate-700/60 font-mono">
+          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 text-slate-200 hover:text-white rounded-md text-xs font-semibold transition-colors border border-slate-700/60 font-mono">
             Full Report <ArrowUpRight size={13} />
           </button>
+          <InfoTooltip {...getTooltipContent('fullReport')} iconSize={12} className="h-5 w-5 self-center" />
           <button
             type="button"
-            onClick={handleRunFullPipeline}
+            onClick={onRunFullPipeline}
+            data-testid="pipeline-run-btn"
             disabled={isRunningPipeline}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed rounded-md text-xs font-semibold transition-colors border border-indigo-400/30 font-mono"
           >
             {isRunningPipeline ? "Running Pipeline..." : "Run Full Pipeline"}
             <RefreshCcw size={13} />
           </button>
+          <InfoTooltip {...getTooltipContent('runPipeline')} iconSize={12} className="h-5 w-5 self-center" />
         </div>
       </div>
 
@@ -252,7 +207,10 @@ const AnalyticsDashboard = ({
         <div className="rounded-xl border border-slate-800 bg-[#0b1329]/80 p-4 shadow-sm">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Pipeline Run</p>
+              <div className="flex items-center gap-1">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">Pipeline Run</p>
+                <InfoTooltip {...getTooltipContent('pipelineRun')} iconSize={12} className="h-4 w-4" />
+              </div>
               <p className="text-sm text-slate-200 font-medium">{pipelineStatus.message}</p>
             </div>
             {pipelineStatus.currentVersion && (
@@ -278,16 +236,19 @@ const AnalyticsDashboard = ({
       {/* ================================================= */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
         {[
-          { label: "Observations", value: metadata.rows.toLocaleString(), icon: Database, color: "text-slate-500", barColor: "bg-slate-700" },
-          { label: "Completeness", value: `${completeness.toFixed(1)}%`, icon: CheckCircle, color: "text-emerald-400", barColor: "bg-emerald-500", highlight: true },
-          { label: "Anomaly count", value: outlierResult ? outlierResult.total_outliers : 0, icon: AlertTriangle, color: "text-rose-400", barColor: "bg-rose-500" },
-          { label: "Violations", value: validationResult ? validationResult.total_violations : 0, icon: ShieldCheck, color: "text-amber-400", barColor: "bg-amber-500" },
-          { label: "Quant vectors", value: numericalStats.length, icon: Activity, color: "text-indigo-400", barColor: "bg-indigo-500" },
-          { label: "Qual vectors", value: categoricalStats.length, icon: Layers3, color: "text-violet-400", barColor: "bg-violet-500" },
+          { label: "Observations", value: (metadata?.rows ?? 0).toLocaleString(), icon: Database, color: "text-slate-500", barColor: "bg-slate-700", tooltipKey: "observations" },
+          { label: "Completeness", value: `${completeness.toFixed(1)}%`, icon: CheckCircle, color: "text-emerald-400", barColor: "bg-emerald-500", highlight: true, tooltipKey: "completeness" },
+          { label: "Anomaly count", value: outlierResult ? outlierResult.total_outliers : 0, icon: AlertTriangle, color: "text-rose-400", barColor: "bg-rose-500", tooltipKey: "anomalyCount" },
+          { label: "Violations", value: validationResult ? validationResult.total_violations : 0, icon: ShieldCheck, color: "text-amber-400", barColor: "bg-amber-500", tooltipKey: "violations" },
+          { label: "Quant vectors", value: numericalStats.length, icon: Activity, color: "text-indigo-400", barColor: "bg-indigo-500", tooltipKey: "quantVectors" },
+          { label: "Qual vectors", value: categoricalStats.length, icon: Layers3, color: "text-violet-400", barColor: "bg-violet-500", tooltipKey: "qualVectors" },
         ].map((kpi, i) => (
           <div key={i} className="bg-[#0b1329]/60 border-2 border-slate-800 rounded-xl p-4 relative overflow-hidden group hover:border-slate-700 transition-colors shadow-md">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider leading-none">{kpi.label}</span>
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider leading-none">{kpi.label}</span>
+                <InfoTooltip {...getTooltipContent(kpi.tooltipKey)} iconSize={12} className="h-4 w-4" />
+              </div>
               <kpi.icon size={14} className={kpi.color} />
             </div>
             <h3 className={`text-xl font-mono font-bold tracking-tight tabular-nums ${kpi.highlight ? kpi.color : "text-slate-100"}`}>
@@ -309,6 +270,7 @@ const AnalyticsDashboard = ({
           <GraphEnclosure
             title="Null Density Distribution"
             subtitle="Null observational gaps categorized across active schema fields"
+            tooltip={getTooltipContent('nullDistribution')}
             icon={BarChart3}
             hasData={missingChartData && missingChartData.length > 0}
           >
@@ -329,6 +291,7 @@ const AnalyticsDashboard = ({
           <GraphEnclosure
             title="Integrity Ratio"
             subtitle="Proportional completeness mix calculation"
+            tooltip={getTooltipContent('integrityRatio')}
             icon={RefreshCcw}
             hasData={qualityPieData && qualityPieData.length > 0}
           >
@@ -338,11 +301,11 @@ const AnalyticsDashboard = ({
             <div className="mt-4 grid grid-cols-2 gap-4 font-mono text-[11px] border-t border-slate-900 pt-4 w-full">
                <div className="flex flex-col border-l-2 border-emerald-500 pl-2">
                   <span className="text-slate-400 uppercase">Available</span>
-                  <span className="text-sm font-bold text-slate-200 mt-0.5">{qualityPieData[0].value.toLocaleString()}</span>
+                  <span className="text-sm font-bold text-slate-200 mt-0.5">{(qualityPieData[0]?.value ?? 0).toLocaleString()}</span>
                </div>
                <div className="flex flex-col border-l-2 border-rose-500 pl-2">
                   <span className="text-slate-400 uppercase">Missing</span>
-                  <span className="text-sm font-bold text-slate-200 mt-0.5">{qualityPieData[1].value.toLocaleString()}</span>
+                  <span className="text-sm font-bold text-slate-200 mt-0.5">{(qualityPieData[1]?.value ?? 0).toLocaleString()}</span>
                </div>
             </div>
           </GraphEnclosure>
@@ -359,6 +322,7 @@ const AnalyticsDashboard = ({
             <GraphEnclosure
               title="Feature Value Histograms"
               subtitle="Continuous distribution parameters over selected targets"
+              tooltip={getTooltipContent('histograms')}
               icon={BarChart3}
               hasData={outlierResult.visualizations.histogram?.length > 0}
             >
@@ -373,6 +337,7 @@ const AnalyticsDashboard = ({
             <GraphEnclosure
               title="Residual Scatter Map"
               subtitle="Bivariate cross-feature outlier detection maps"
+              tooltip={getTooltipContent('residualScatter')}
               icon={Crosshair}
               hasData={outlierResult.visualizations.scatterplot?.length > 0}
             >
@@ -393,9 +358,12 @@ const AnalyticsDashboard = ({
             <div className="p-1.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-md">
               <Sigma size={15} />
             </div>
-            <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider font-mono">Descriptive Statistics Laboratory</h3>
-              <p className="text-[10px] text-slate-500 font-mono uppercase mt-0.5">Confidence Interval: 95% σ-verified</p>
+            <div className="flex items-start gap-2">
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider font-mono">Descriptive Statistics Laboratory</h3>
+                <p className="text-[10px] text-slate-500 font-mono uppercase mt-0.5">Confidence Interval: 95% σ-verified</p>
+              </div>
+              <InfoTooltip {...getTooltipContent('statisticsLab')} iconSize={12} className="mt-0.5 h-4 w-4" />
             </div>
           </div>
           <div className="p-6 bg-slate-950/10 space-y-6">
@@ -406,6 +374,7 @@ const AnalyticsDashboard = ({
               <GraphEnclosure
                 title="Structural Outlier Quantiles"
                 subtitle="Whisker summary diagnostics evaluating interquartile tracking boundaries"
+                tooltip={getTooltipContent('boxplot')}
                 icon={Activity}
                 hasData={true}
               >
@@ -428,6 +397,7 @@ const AnalyticsDashboard = ({
             <GraphEnclosure
               title="Covariance Heatmap (Pearson)"
               subtitle="Linear product-moment relational outputs coefficient metrics"
+              tooltip={getTooltipContent('covarianceHeatmap')}
               icon={Binary}
               hasData={true}
             >
@@ -444,6 +414,7 @@ const AnalyticsDashboard = ({
             <GraphEnclosure
               title="Violation Severity Distribution"
               subtitle="Rule constraint failure weights array metrics"
+              tooltip={getTooltipContent('severityDistribution')}
               icon={ShieldCheck}
               hasData={true}
             >
@@ -462,6 +433,7 @@ const AnalyticsDashboard = ({
         <GraphEnclosure
           title="Workflow Lineage Graph"
           subtitle="Visualized execution from raw intake to report generation with version tracking"
+          tooltip={getTooltipContent('workflowLineage')}
           icon={Layers3}
           hasData={pipelineStages.length > 0}
         >
@@ -476,6 +448,7 @@ const AnalyticsDashboard = ({
           <GraphEnclosure
             title="Computational Bias Correction Profile"
             subtitle="Iterative proportional fitting mapping matrix adjustments"
+            tooltip={getTooltipContent('weightProfile')}
             icon={Sigma}
             hasData={true}
           >
@@ -500,6 +473,7 @@ const AnalyticsDashboard = ({
         <GraphEnclosure
           title="Convergence Workflow Pipeline"
           subtitle="Monitoring fitting iterations sequential convergence logs across session states"
+          tooltip={getTooltipContent('convergenceWorkflow')}
           icon={RefreshCcw}
           hasData={workflowData && workflowData.length > 0}
         >

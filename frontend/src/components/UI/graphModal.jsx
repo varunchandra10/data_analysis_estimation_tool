@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { ChevronDown, ChevronUp, Info } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import InfoTooltip from "./InfoTooltip";
 
 /**
  * GraphEnclosure - A premium, reusable statistical visualization layout shell.
@@ -8,7 +9,7 @@ import { ChevronDown, ChevronUp, Info } from "lucide-react";
 const GraphEnclosure = ({ 
   title = "Analytical Plot Matrix", 
   subtitle, 
-  tooltipText, 
+  tooltip,
   hasData = false, 
   icon: Icon = null,
   children 
@@ -52,13 +53,13 @@ const GraphEnclosure = ({
 
         {/* ACTIONS & KEY TOGGLE BLOCK FAR RIGHT LAYOUT ALIGNED */}
         <div className="flex items-center gap-4 ml-4 shrink-0">
-          {tooltipText && (
-            <div className="group/tooltip relative">
-              <Info size={14} className="text-slate-500 hover:text-indigo-400 transition-colors cursor-help" />
-              <div className="absolute right-0 bottom-full mb-3 w-64 p-3 bg-slate-950 text-slate-300 text-[10px] leading-relaxed rounded-sm border border-slate-800 opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-50 font-sans shadow-2xl">
-                {tooltipText}
-              </div>
-            </div>
+          {tooltip && (
+            <InfoTooltip
+              ariaLabel={`${title} information`}
+              className="h-5 w-5"
+              iconSize={13}
+              {...tooltip}
+            />
           )}
           
           {/* CONTROL DOWN-ARROW BUTTON INDICATOR */}

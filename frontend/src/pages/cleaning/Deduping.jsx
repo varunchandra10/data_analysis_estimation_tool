@@ -1,6 +1,6 @@
 import React from 'react';
-import DuplicatePanel from '../../components/DuplicatePanel';
+import DuplicateContainer from '../../components/DuplicateContainer';
 
-export default function Deduping(props) {
-  return <DuplicatePanel {...props} />;
+export default function Deduping() {
+  return <DuplicateContainer />;
 }

@@ -1,20 +1,18 @@
 import { useEffect, useState } from "react";
+import { useDatasetContext } from "../context/DatasetContext";
+import { useAIContext } from "../context/AIContext";
 
-import axios from "axios";
-import { apiUrl } from "../api/config";
-
-const AIEngine = ({
-  datasetData,
-  setAIResults,
-  aiResultsSourcePath,
-  setAIResultsSourcePath,
-  setAILoading
-}) => {
+const AIEngine = () => {
+  const { datasetData } = useDatasetContext();
+  const {
+    aiResultsSourcePath,
+    setAILoading,
+    fetchAIRecommendations
+  } = useAIContext();
 
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-
     if (!datasetData) return;
 
     if (
@@ -25,58 +23,24 @@ const AIEngine = ({
     }
 
     generateInsights();
-
   }, [datasetData, aiResultsSourcePath]);
 
-  // =====================================================
-  // GENERATE AI INSIGHTS
-  // =====================================================
-
   const generateInsights = async () => {
-
     setLoading(true);
     if (setAILoading) setAILoading(true);
 
     try {
-
-      const response = await axios.post(
-
-        apiUrl("/api/ai/recommendations"),
-
-        {
-
-          file_path:
-            datasetData.metadata.file_path,
-
-          schema:
-            datasetData.schema,
-
-          metadata:
-            datasetData.metadata
-
-        }
-
+      await fetchAIRecommendations(
+        datasetData.metadata.file_path,
+        datasetData.schema,
+        datasetData.metadata
       );
-
-      setAIResults(response.data);
-      if (setAIResultsSourcePath) {
-        setAIResultsSourcePath(datasetData.metadata.file_path);
-      }
-
     } catch (err) {
-
-      console.error(
-        "AI Engine Error:",
-        err
-      );
-
+      console.error("AI Engine Error:", err);
     } finally {
-
       setLoading(false);
       if (setAILoading) setAILoading(false);
-
     }
-
   };
 
   return null;

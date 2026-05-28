@@ -1,6 +1,5 @@
 import React from 'react';
-import WeightEstimationPanel from '../../components/cleaning/weight_estimation/WeightEstimationPanel';
+import WeightingContainer from '../../components/cleaning/weight_estimation/WeightingContainer';
 
-export default function WeightingEngine(props) {
-  return <WeightEstimationPanel {...props} />;
-}
+export default function WeightingEngine() {
+  return <WeightingContainer />;}

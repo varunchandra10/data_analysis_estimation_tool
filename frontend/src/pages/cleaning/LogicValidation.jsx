@@ -1,6 +1,5 @@
 import React from 'react';
-import RuleValidationPanel from '../../components/cleaning/rule_validation/ValidationPanel';
+import ValidationContainer from '../../components/cleaning/rule_validation/ValidationContainer';
 
-export default function LogicValidation(props) {
-  return <RuleValidationPanel {...props} />;
-}
+export default function LogicValidation() {
+  return <ValidationContainer />;}

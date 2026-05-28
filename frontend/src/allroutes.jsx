@@ -11,33 +11,41 @@ import WeightingEngine from './pages/cleaning/WeightingEngine';
 import StatisticalEngine from './pages/analysis/StatisticalEngine';
 import VersionControl from './pages/versioning/VersionControl';
 import AuditTrail from './pages/cleaning/AuditTrail';
-import ReportPanel from './components/ReportPanel';
+import ReportContainer from './components/ReportContainer';
 import { useNavigate } from 'react-router-dom';
 
-export default function AllRoutes({
-  datasetData,
-  setDatasetData,
-  aiResults,
-  aiResultsSourcePath,
-  setAIResults,
-  setAIResultsSourcePath,
-  setActiveTab,
-  setIsMobileMenuOpen,
-  setAnalyticsViewData,
-  analyticsViewData,
-  validationResult,
-  setValidationResult,
-  estimationResult,
-  setEstimationResult,
-  outlierResult,
-  setOutlierResult,
-  duplicateResult,
-  setDuplicateResult,
-  activeAnalyticsData,
-  missingValueInsights,
-  outlierInsights,
-  validationInsights
-}) {
+import { useDatasetContext } from './context/DatasetContext';
+import { useAIContext } from './context/AIContext';
+
+export default function AllRoutes() {
+  const {
+    datasetData,
+    setDatasetData,
+    validationResult,
+    setValidationResult,
+    estimationResult,
+    setEstimationResult,
+    outlierResult,
+    setOutlierResult,
+    duplicateResult,
+    setDuplicateResult,
+    analyticsViewData,
+    setAnalyticsViewData,
+    setActiveTab,
+    setIsMobileMenuOpen
+  } = useDatasetContext();
+
+  const {
+    aiResults,
+    setAIResults,
+    aiResultsSourcePath,
+    setAIResultsSourcePath,
+    missingValueInsights,
+    outlierInsights,
+    validationInsights
+  } = useAIContext();
+
+  const activeAnalyticsData = analyticsViewData || datasetData;
   const navigate = useNavigate();
 
   const handleUploadSuccess = (data) => {
@@ -52,70 +60,6 @@ export default function AllRoutes({
   const handleWholeDatasetBack = () => {
     setActiveTab('overview');
     navigate('/dataset-explorer');
-  };
-
-  const handleNullAnalysisComplete = (result) => {
-    setAIResults(null);
-    setAIResultsSourcePath(null);
-    setAnalyticsViewData(null);
-    setDatasetData((prev) => ({
-      ...prev,
-      preview: result.preview,
-      metadata: {
-        ...prev.metadata,
-        file_path: result.file_path,
-        dataset_name: prev.metadata.dataset_name || prev.metadata.filename,
-        null_counts: result.null_counts,
-      },
-    }));
-  };
-
-  const handleAnomalyResult = (res) => {
-    setOutlierResult(res);
-    if (res?.file_path) {
-      setAnalyticsViewData(null);
-      setDatasetData((prev) => ({
-        ...prev,
-        preview: res.preview || prev.preview,
-        metadata: { ...prev.metadata, file_path: res.file_path },
-      }));
-    }
-  };
-
-  const handleDedupingComplete = (result) => {
-    setDuplicateResult(result);
-    setAIResults(null);
-    setAIResultsSourcePath(null);
-    setAnalyticsViewData(null);
-    setDatasetData((prev) => ({
-      ...prev,
-      preview: result.preview,
-      metadata: {
-        ...prev.metadata,
-        file_path: result.file_path,
-        rows: result.final_rows,
-      },
-    }));
-  };
-
-  const handleLogicValidationComplete = (res) => {
-    setActiveTab('validation');
-    if (res?.file_path) {
-      setAIResults(null);
-      setAIResultsSourcePath(null);
-      setAnalyticsViewData(null);
-      setDatasetData((prev) => ({
-        ...prev,
-        preview: res.preview || prev.preview,
-        metadata: { ...prev.metadata, file_path: res.file_path },
-      }));
-    }
-  };
-
-  const handleVersionControlAnalytics = (analyticsDataset) => {
-    setAnalyticsViewData(analyticsDataset);
-    setActiveTab('analytics');
-    setIsMobileMenuOpen(false);
   };
 
   if (!datasetData) {
@@ -137,70 +81,20 @@ export default function AllRoutes({
         path="/whole-dataset"
         element={<WholeDatasetPage datasetData={datasetData} onBack={handleWholeDatasetBack} />}
       />
-      <Route
-        path="/null-analysis"
-        element={
-          <NullAnalysis data={datasetData} aiInsights={missingValueInsights} onCleaningComplete={handleNullAnalysisComplete} />
-        }
-      />
-      <Route
-        path="/anomaly-detection"
-        element={
-          <AnomalyDetection data={datasetData} aiInsights={outlierInsights} onResult={handleAnomalyResult} />
-        }
-      />
-      <Route
-        path="/deduping"
-        element={
-          <Deduping
-            data={datasetData}
-            aiInsights={aiResults?.duplicate_insights || []}
-            onProcessComplete={handleDedupingComplete}
-          />
-        }
-      />
-      <Route
-        path="/logic-validation"
-        element={
-          <LogicValidation data={datasetData} aiInsights={validationInsights} onValidationComplete={handleLogicValidationComplete} />
-        }
-      />
-      <Route
-        path="/weighting-engine"
-        element={
-          <WeightingEngine data={datasetData} aiInsights={aiResults?.weight_estimation_insights || []} onEstimationComplete={setEstimationResult} />
-        }
-      />
+      <Route path="/null-analysis" element={<NullAnalysis />} />
+      <Route path="/anomaly-detection" element={<AnomalyDetection />} />
+      <Route path="/deduping" element={<Deduping />} />
+      <Route path="/logic-validation" element={<LogicValidation />} />
+      <Route path="/weighting-engine" element={<WeightingEngine />} />
       <Route
         path="/statistical-engine"
         element={
-          <StatisticalEngine
-            datasetData={activeAnalyticsData}
-            setDatasetData={setDatasetData}
-            validationResult={validationResult}
-            setValidationResult={setValidationResult}
-            estimationResult={estimationResult}
-            setEstimationResult={setEstimationResult}
-            outlierResult={outlierResult}
-            setOutlierResult={setOutlierResult}
-            duplicateResult={duplicateResult}
-            setDuplicateResult={setDuplicateResult}
-            aiResults={aiResults}
-            setAIResults={setAIResults}
-          />
+          <StatisticalEngine />
         }
       />
-      <Route path="/version-control" element={<VersionControl data={datasetData} onViewAnalytics={handleVersionControlAnalytics} />} />
-      <Route path="/report-center" element={<ReportPanel
-        datasetData={datasetData}
-        aiResults={aiResults}
-        validationResult={validationResult}
-        estimationResult={estimationResult}
-        outlierResult={outlierResult}
-        duplicateResult={duplicateResult}
-        analyticsViewData={analyticsViewData}
-      />} />
-      <Route path="/audit-trail" element={<AuditTrail data={datasetData} />} />
+      <Route path="/version-control" element={<VersionControl />} />
+      <Route path="/report-center" element={<ReportContainer />} />
+      <Route path="/audit-trail" element={<AuditTrail />} />
     </Routes>
   );
 }

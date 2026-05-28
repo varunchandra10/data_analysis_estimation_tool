@@ -1,196 +1,175 @@
+# DAET Backend (Data Analysis & Estimation Tool)
+A FastAPI service for ingesting and cleaning survey data, running validations and IPF weighting, generating explainable AI outputs, and managing versioned, auditable dataset snapshots.
 
 ---
 
-## BACKEND - Overview
+## Core backend features
 
-- Modular FastAPI analytical processing layer for survey datasets.
-- Responsibilities: ingestion, preprocessing, validation, statistical estimation, AI-assisted interpretability, version-aware storage, reporting, and auditability.
-- Status: iterative development - some modules stable, others partial or planned.
+| Feature | Summary |
+| --- | --- |
+| Ingestion & schema | CSV/XLSX streaming, type inference and profiling |
+| Cleaning & imputation | Vectorized imputation (mean/median/mode/const/interpolate) and dedupe |
+| Outlier detection | IQR and Z-score anomaly detection |
+| Validation DSL | Cross-field conditional rule engine for data checks |
+| Weighting (IPF) | Iterative Proportional Fitting (raking) for demographic calibration |
+| AI & caching | Ollama & Gemini explainers with SQLite caching |
+| Versioning (DAG) | Version lineage with atomic, single-click rollbacks |
+| Async PDF reporting | Background ReportLab PDF generation |
+| Secure storage | AES encryption, compression, HMAC-signed temporary links |
+| Reconciliation audit | DB↔disk consistency scans and automated healing |
 
-`Backend of the project will be added soon due to some frontend and backend bugs and to stop users to clone this project we have removed the backend from the repo until all front and backend connections gets better sorry for the inconviences :)`
+---
 
-## Design Principles
+## Backend tech stack
 
-- Modular route separation and service-first architecture.  
-- Utility-driven, reusable helpers.  
-- File-backed dataset version awareness and snapshot lineage.  
-- Deterministic statistical pipelines with controlled LLM assistance.  
-- Avoid route-to-route coupling; favor service orchestration.  
-- Incremental hardening: tests, Pydantic contracts, and DB normalization prioritized.
+| Component | Tech | Notes |
+| --- | --- | --- |
+| Framework | FastAPI (Python 3.10+) | ASGI web framework
+| Data | Pandas, NumPy | Vectorized dataframe ops
+| Database | SQLite, SQLAlchemy | Lightweight relational store
+| Stats | SciPy, Statsmodels | Statistical algorithms
+| LLM / AI | Ollama (phi3) & Gemini API | Local Phi3 with Gemini 2.5 Flash API fallback
+| Reporting | ReportLab, Pillow | PDF & image generation
+| Validation | Pydantic v2 | DTOs and schema validation
+| Excel | openpyxl | Excel workbook parsing
+| Security | cryptography | AES, HMAC, SHA-256
+| Async | FastAPI BackgroundTasks | Background job execution
+| Testing | Pytest | Unit/integration tests
 
-## Folder Structure (top-level)
+---
 
-```
-backend/
-│
-├── app.py                  # FastAPI app entry
-├── core/                   # app_init, config, constants
-├── routes/                 # HTTP route modules (upload, cleaning, validation...)
-├── services/               # Domain logic & pipelines
-├── utils/                  # Shared helpers (dataframe/file/stats)
-├── datasets/               # File-backed dataset snapshots
-├── logs/                   # Audit logs / operation traces
-├── ai_cache/               # Cached AI outputs / recommendations
-```
+## API reference (grouped)
 
-- `app.py`: FastAPI startup, middleware, router registration.  
-- `routes/`: thin adapters - validation, upload, cleaning endpoints.  
-- `services/`: where domain logic, pipelines, and orchestration live.  
-- `utils/`: stateless helpers used by services and routes.  
-- `datasets/`, `logs/`, `ai_cache/`: primary persistence areas (file-first today).
+All endpoints accept and return JSON unless noted.
 
-## Request Flow
+### Upload & datasets
 
-Frontend  
- ↓  
-FastAPI Routes (`routes/`) - thin adapters  
- ↓  
-Service Layer (`services/`) - orchestration & domain logic  
- ↓  
-Statistical Engines (Pandas / SciPy / Statsmodels)  
- ↓  
-Utility Layer (`utils/`) - IO, transforms, validation helpers  
- ↓  
-Storage / Versioning / Reports (`datasets/`, `logs/`, export services`)
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/upload` | Upload CSV/XLSX, infer schema, save snapshot |
+| `POST` | `/api/datasets/full-preview` | Return dataset preview and metadata |
 
-Notes: routes delegate to services; services own pipeline steps and snapshots to prevent route-to-route coupling.
+### Cleaning & outliers
 
-## Route Layer
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/clean/missing-values` | Impute missing values (mean/median/mode/const/interpolate) |
+| `POST` | `/api/duplicates/process` | Detect and process duplicate records |
+| `POST` | `/api/outliers/detect` | Identify outliers (IQR / Z-score) |
+| `POST` | `/api/outliers/apply` | Apply outlier filters and commit new version |
 
-| Route Module | Responsibility | Status |
-|---|---|---:|
-| `upload_routes.py` | Accept file uploads, create initial snapshot | Stable |
-| `cleaning_routes.py` | Trigger cleaning pipelines, preview results | Stable |
-| `outlier_routes.py` | Detect / apply outlier strategies | Stable |
-| `duplicate_routes.py` | Detect & deduplicate records | Stable |
-| `validation_routes.py` | Rule authoring & validation runs | Partial |
-| `statistics_routes.py` | Descriptive stats & summaries | Improving |
-| `ai_routes.py` | Trigger AI explanations / recommendations | Partial |
-| `logs_routes.py` | Retrieve audit logs & operation history | Stable |
+### Validation & statistics
 
-## Service Layer (where core domain logic lives)
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/validation/suggest` | Auto-suggest validation rules for columns |
+| `POST` | `/api/validation/run` | Run DSL validation rules and return failures |
+| `POST` | `/api/statistics/profile` | Compute summaries, missing ratios, correlations |
+| `POST` | `/api/statistics/estimate` | Run IPF / raking weighting calculations |
 
-| Service | Purpose | Maturity |
-|---|---|---:|
-| `recommendation_engine.py` | Deterministic statistical recommendations | Stable |
-| `ai_explanation_engine.py` | Generate LLM explanations (Ollama wrappers) | Partial |
-| `module_ai_engine.py` | Module-specific AI assist (validation/weighting hints) | Partial |
-| `ai_cache_engine.py` | Cache & reuse AI responses for reproducibility | Stable |
-| `weighting_engine.py` | Survey weighting algorithms & diagnostics | Stable / Improving |
+### AI & reports
 
-Notes: Services implement pipeline steps, snapshot/version management and call utils/stat engines; unit tests should focus here.
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/ai/recommendations` | Produce cleaning recommendations |
+| `POST` | `/api/ai/explanations` | Generate LLM explainers (Ollama / Gemini fallback) |
+| `POST` | /api/report/generate | Enqueue PDF report (returns `task_id`) |
+| `GET` | `/api/report/status/{task_id}` | Poll report build status |
+| `GET` | `/api/reports/download/{filename}` | Download completed PDF report |
 
-## Utility Layer
+### Versioning & storage
 
-| Utility | Role |
-|---|---|
-| `file_utils` | file IO, snapshot save/restore, checksums |
-| `dataframe_utils` | DataFrame transforms, type-casting, schema ops |
-| `stats_utils` | statistical helpers: imputation, z‑score, IQR |
-| `validation_utils` | DSL parsing, rule evaluation, conditional checks |
-| `visualization_utils` | chart data preparation (frontend-friendly) |
-| `log_utils` | audit log formatting and persistence |
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/versioning/versions` | List dataset versions |
+| `GET` | `/api/versioning/latest` | Get latest version metadata |
+| `GET` | `/api/versioning/compare` | Compare two versions |
+| `GET` | `/api/versioning/manifest/{version_name}` | Get version manifest |
+| `POST` | `/api/versioning/rollback` | Roll back to historical version |
+| `POST` | `/api/versioning/compress` | Compress dataset file on disk |
+| `POST` | `/api/versioning/decompress` | Decompress a zipped dataset file |
+| `POST` | `/api/versioning/encrypt` | Encrypt dataset file at rest |
+| `POST` | `/api/versioning/decrypt` | Decrypt dataset file |
+| `POST` | `/api/versioning/download-token` | Generate signed temporary download token |
+| `GET` | `/api/versioning/download` | Download dataset using token |
+| `POST` | `/api/versioning/archive/version` | Archive & encrypt a specific version |
+| `POST` | `/api/versioning/archive/old` | Archive older snapshots |
 
-These are intentionally stateless and unit-testable.
+### Utilities & logs
 
-## Current Core Backend Features
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/reconcile` | Run DB↔disk reconciliation audit |
+| `GET` | `/api/logs/{dataset_name}` | Retrieve audit logs for a dataset |
 
-| Feature | Status | Notes |
-|---|---:|---|
-| CSV/XLSX Upload | Implemented | File-backed initial snapshots |
-| Schema Inference | Implemented | Basic type coercion & column stats |
-| Dataset Preview | Implemented | Quick preview + metadata |
-| Missing Value Cleaning | Implemented | Mean/median/mode/KNN strategies |
-| Outlier Detection | Implemented | IQR / Z-score / Winsorization |
-| Duplicate Handling | Implemented | Detection + dedupe policies |
-| Validation Engine | Partial | DSL exists; needs hardening & tests |
-| Weight Estimation | Implemented | Survey weighting + diagnostics |
-| AI Recommendations | Implemented | Deterministic + heuristics |
-| AI Explanations | Partial | Ollama integration present; prompts evolving |
-| AI Cache | Implemented | Cached outputs for repeatability |
-| Audit Logs | Implemented | Operation traces in `logs/` |
-| Version-aware flow | Implemented | File snapshots + metadata |
-| Compression | Implemented | Archive snapshots on demand |
-| Encryption | Implemented | At-rest workflows integrated |
-| Report Generation | Partial | PDF/export templates in progress |
-| Pipeline flow | Implemented | Orchestrated via services |
+---
 
-## Dataset Version Lifecycle
+## ER-Diagram
+![er-diagram](../documents/ER-diagram.png)
 
-Raw Upload → Cleaning → Outlier Handling → Validation → Weight Estimation → Report / Archive / Export
+## Backend - setup & run (quick)
 
-- Snapshots saved at key steps to `datasets/` with metadata.  
-- Rollback and restore supported via snapshot retrieval (partial/complete depending on dataset state).
+Prerequisites
+- Python 3.10+
+- Ollama (optional, for local LLM) and/or Google Gemini API Key (for cloud fallback)
 
-## AI Backend Design
+Steps (copy-paste)
 
-| Engine | Responsibility |
-|---|---|
-| Recommendation Engine | Deterministic statistical suggestions and rule hints |
-| AI Explanation Engine | Ollama-based human-readable explanations for edits/validation |
-| Module AI Engine | Contextual module assistance (validation/weighting) |
-| AI Cache Engine | Persist & reuse AI responses for reproducibility |
-
-Hybrid pattern: deterministic first, LLMs used for explanation/context and human-facing summaries.
-
-## Storage Strategy
-
-- Current approach: file-backed dataset storage with metadata files and checksums (`datasets/`, `ai_cache/`, `logs/`).  
-- Strengths: simple rollback, transparent lineage, low friction.  
-- Limits: metadata normalization and DB-backed indexing are still evolving - DB sync and normalized metadata are planned.
-
-## Backend Maturity / Limitations
-
-| Area | Current State |
-|---|---|
-| Validation DSL | Partial (works; needs tests & richer operators) |
-| Weighting correctness | Improving (diagnostics present; more unit tests needed) |
-| AI consolidation | In progress (prompt templates + reliability work) |
-| DB sync & normalization | Planned |
-| Auth / RBAC | Planned |
-| Background tasks (workers) | Planned (Celery / Redis) |
-| Large dataset optimization | Planned (parquet / partitioning) |
-| Full persistence guarantees | Evolving |
-
-Be explicit with reviewers: not all modules are production-hardened; priority is correctness, auditability, and testability.
-
-## What This Backend Demonstrates
-
-- FastAPI modular backend structuring and routing patterns.  
-- Clear separation: routes → services → engines → utils.  
-- Analytical data pipelines (preprocess → validate → weight → report).  
-- Version-aware dataset engineering (file snapshots + metadata).  
-- AI-assisted orchestration with caching for reproducibility.  
-- Practical engineering trade-offs: file-first persistence, incremental hardening.
-
-## Local Backend Run (quick)
-
+1) Open a terminal and go to the backend folder:
 ```bash
-# create venv, install and run backend (Windows PowerShell)
-python -m venv .venv
-.venv\\Scripts\\Activate.ps1
-pip install -r backend/requirements.txt
-uvicorn backend.app:app --reload
+cd backend
 ```
 
-If using local AI models:
-
+2) Create and activate a virtual environment:
 ```bash
-ollama serve
-ollama run phi3
+# Windows PowerShell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+
+# macOS / Linux
+python -m venv venv
+source venv/bin/activate
 ```
 
-## Future Hardening (planned)
+3) Install Python dependencies:
+```bash
+pip install -r requirements.txt
+```
 
-| Focus | Priority |
-|---|---:|
-| Pydantic contracts & DTO tightening | High |
-| Validation DSL hardening & tests | High |
-| AI consolidation & robust prompts | Medium-High |
-| DB normalization & metadata indexing | High |
-| JWT Auth & RBAC | High |
-| Background jobs & retries | Medium |
-| Pagination, streaming & large-file handling | Medium |
-| Expanded unit / e2e test coverage | High |
+4) Run the development server:
+```bash
+uvicorn main:app --reload --port 8000
+```
+API docs: http://localhost:8000/docs
+
+### AI Configuration (Ollama & Gemini API)
+
+The backend supports a dual-AI engine configuration for generating explainable insights:
+* **Local Mode (Ollama)**: Uses local running model weights (default: `phi3`).
+* **Cloud Mode (Google Gemini)**: Automatically falls back to Google's **Gemini 2.5 Flash API** if Ollama is offline or when deployed to production (e.g. on Render).
+
+**Setup local Ollama:**
+1. Download Ollama and start the service:
+   ```bash
+   ollama serve
+   ollama run phi3
+   ```
+
+**Setup Gemini API Failover (Local & Deployed):**
+1. Create a `.env` file in the project root directory.
+2. Add your Gemini API key:
+   ```env
+   GEMINI_API_KEY=your_gemini_api_key_here
+   ```
+   *(For production deployments, configure `GEMINI_API_KEY` under the Render Environment Variables tab).*
+
+Run tests:
+```bash
+pytest
+```
+
+Notes
+- Use the PowerShell commands on Windows and `source` on Unix-like shells.
+- Activate the virtual environment in each new terminal before running the server or tests.
 
 ---

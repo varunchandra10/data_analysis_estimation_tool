@@ -1,20 +1,14 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
-import { apiUrl } from "../../../api/config";
+import React from "react";
 import { 
   AlertTriangle, 
   BarChart3, 
   Settings2, 
   Table as TableIcon, 
   Activity, 
-  Info, 
   Loader2, 
   BrainCircuit, 
   Bot, 
   Zap, 
-  ShieldCheck, 
-  ChevronDown, 
-  ChevronUp,
   Database, 
   Crosshair, 
   Cpu, 
@@ -26,64 +20,59 @@ import HistogramChart from "../../charts/HistogramChart";
 import ScatterChartComponent from "../../charts/ScatterChartComponent";
 import BoxPlotComponent from "../../charts/BoxPlotComponent";
 import GraphEnclosure from "../../UI/graphModal";
+import { useAI } from "../../../hooks/useAI";
+import AIInsightCard from "../../common/AIInsightCard";
+import InfoTooltip from "../../UI/InfoTooltip";
+import { getTooltipContent } from "../../../utils/tooltipContent";
 
-const OutlierPanel = ({ data, aiInsights = [] }) => {
+const OutlierPanel = ({
+  data,
+  aiInsights = [],
+  selectedColumn,
+  setSelectedColumn,
+  method,
+  setMethod,
+  result,
+  loading,
+  applyLoading,
+  onDetect,
+  onApply
+}) => {
+  const {
+    explanations,
+    loadingExplanations,
+    explanationsError,
+    explanationsCacheUsed,
+    fetchAIExplanations
+  } = useAI();
+
+  const getOutlierExplanation = (columnName) => {
+    const colExp = explanations?.explanations?.find(exp => exp.column === columnName);
+    return colExp?.outlier_ai_explanation;
+  };
+
   if (!data) return null;
 
   const { metadata, schema } = data;
-  const numericColumns = schema.filter((col) => col.type === "Numerical");
+  const normalizedSchema = Array.isArray(schema) ? schema : [];
+  const numericColumns = normalizedSchema.filter((col) => col.type === "Numerical");
 
-  const [selectedColumn, setSelectedColumn] = useState("");
-  const [method, setMethod] = useState("iqr");
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [applyLoading, setApplyLoading] = useState(false);
-
-  const handleDetect = async () => {
-    if (!selectedColumn) return;
-    setLoading(true);
-    try {
-      const response = await axios.post(apiUrl("/api/outliers/detect"), {
-        file_path: metadata.file_path,
-        column: selectedColumn,
-        method,
-      });
-
-      setResult({
-        ...response.data,
-        column: selectedColumn,
-        method: method
-      });
-
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+  const handleDetect = () => {
+    onDetect();
   };
 
-  const handleApply = async () => {
-    if (!result) return;
-    setApplyLoading(true);
-    try {
-      const response = await axios.post(apiUrl("/api/outliers/apply"), {
-        file_path: metadata.file_path,
-        column: selectedColumn,
-        method: method,
-      });
-
-      setResult((r) => ({ ...r, applied: true, file_path: response.data.file_path, preview: response.data.preview, applied_preview: undefined }));
-
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setApplyLoading(false);
-    }
+  const handleApply = () => {
+    onApply();
   };
+
+  const visualizations = result?.visualizations || {};
+  const histogramData = Array.isArray(visualizations.histogram) ? visualizations.histogram : [];
+  const scatterData = Array.isArray(visualizations.scatterplot) ? visualizations.scatterplot : [];
+  const boxplotStats = visualizations.boxplot || null;
 
   // Helper flags evaluating active chart arrays for structural safety blocks
-  const hasHistogramData = result?.visualizations?.histogram && result.visualizations.histogram.length > 0;
-  const hasScatterData = result?.visualizations?.scatterplot && result.visualizations.scatterplot.length > 0;
+  const hasHistogramData = histogramData.length > 0;
+  const hasScatterData = scatterData.length > 0;
 
   return (
     <div className="space-y-6 antialiased text-slate-200 font-sans max-w-[1600px] mx-auto pb-10 px-4 sm:px-6">
@@ -97,8 +86,11 @@ const OutlierPanel = ({ data, aiInsights = [] }) => {
             <Sigma size={14} className="text-rose-400" />
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Diagnostic Module</span>
           </div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-100 font-mono">Outlier Vector Analysis</h2>
-          <p className="text-xs text-slate-400 font-medium mt-1">Detecting observational deviants in dataset: <span className="font-mono text-indigo-400">{metadata.filename}</span></p>
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl font-bold tracking-tight text-slate-100 font-mono">Outlier Vector Analysis</h2>
+            <InfoTooltip {...getTooltipContent('outlierAnalysis')} iconSize={14} className="h-5 w-5" />
+          </div>
+          <p className="text-xs text-slate-400 font-medium mt-1">Detecting observational deviants in dataset: <span className="font-mono text-indigo-400">{metadata?.filename || 'Unknown Dataset'}</span></p>
         </div>
         
         <div className="flex items-center gap-3 bg-[#0b1329] px-4 py-2 rounded-md border border-slate-900">
@@ -183,7 +175,7 @@ const OutlierPanel = ({ data, aiInsights = [] }) => {
                   value={selectedColumn}
                   onChange={(e) => setSelectedColumn(e.target.value)}
                 >
-                  <option value="" className="text-slate-500">— SELECT FIELD —</option>
+                  <option value="" className="text-slate-500">- SELECT FIELD -</option>
                   {numericColumns.map((col, idx) => (
                     <option key={idx} value={col.column} className="bg-slate-950 text-slate-200">{col.column}</option>
                   ))}
@@ -205,11 +197,15 @@ const OutlierPanel = ({ data, aiInsights = [] }) => {
                   <option value="zscore" className="bg-slate-950 text-slate-200">Z-Score (Standardized residuals)</option>
                   <option value="winsorization" className="bg-slate-950 text-slate-200">Winsorization (Capping)</option>
                 </select>
+                <div className="mt-2">
+                  <InfoTooltip {...getTooltipContent('detectionMethod')} iconSize={12} className="h-4 w-4" />
+                </div>
               </div>
             </div>
 
             <button
               onClick={handleDetect}
+              data-testid="outlier-detect-btn"
               disabled={loading || !selectedColumn}
               className="flex items-center justify-center gap-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-950 disabled:text-slate-600 border border-transparent disabled:border-slate-900 text-white rounded-md px-6 py-2.5 transition-all font-bold uppercase text-[11px] tracking-wide shadow-md active:scale-95 group font-mono"
             >
@@ -220,6 +216,7 @@ const OutlierPanel = ({ data, aiInsights = [] }) => {
               )}
               {loading ? "INITIALIZING STREAMS..." : "EXECUTE ANALYSIS"}
             </button>
+            <InfoTooltip {...getTooltipContent('detectOutliers')} iconSize={12} className="h-5 w-5" />
           </div>
 
           {/* AI ADVISORY COLLAPSIBLE */}
@@ -240,6 +237,14 @@ const OutlierPanel = ({ data, aiInsights = [] }) => {
                     <Zap size={11} fill="currentColor" className="text-rose-500" /> {aiInsights.find(i => i.column === selectedColumn).warning}
                   </div>
                 )}
+                <AIInsightCard
+                  title="Method Explanation"
+                  explanation={getOutlierExplanation(selectedColumn)}
+                  loading={loadingExplanations}
+                  error={explanationsError}
+                  cacheUsed={explanationsCacheUsed}
+                  onRefresh={fetchAIExplanations}
+                />
               </div>
             </div>
           )}
@@ -279,13 +284,13 @@ const OutlierPanel = ({ data, aiInsights = [] }) => {
                 <GraphEnclosure
                   title="Density Distribution"
                   subtitle="Null density across identified vector headers"
-                  tooltipText="Continuous frequency parameters map variables. Increased vertical scale prevents X-Axis clipping parameters."
+                  tooltip={getTooltipContent('histograms')}
                   icon={BarChart3}
                   hasData={hasHistogramData}
                 >
                   {/* Bumping component wrapper bounds up to 450px prevents structural cutoff parameters */}
                   <div className="h-[450px] w-full overflow-hidden bg-[#0f172a]">
-                    <HistogramChart data={result.visualizations.histogram} />
+                    <HistogramChart data={histogramData} />
                   </div>
                 </GraphEnclosure>
               </div>
@@ -295,11 +300,12 @@ const OutlierPanel = ({ data, aiInsights = [] }) => {
                 <GraphEnclosure
                   title="Residual Scatter Map"
                   subtitle="Proportional outlier dispersion plotting"
+                  tooltip={getTooltipContent('residualScatter')}
                   icon={Crosshair}
                   hasData={hasScatterData}
                 >
                   <div className="h-[450px] w-full overflow-hidden bg-[#0f172a]">
-                    <ScatterChartComponent data={result.visualizations.scatterplot} xKey="x" yKey="y" color="#f43f5e" />
+                    <ScatterChartComponent data={scatterData} xKey="x" yKey="y" color="#f43f5e" />
                   </div>
                 </GraphEnclosure>
               </div>
@@ -312,12 +318,12 @@ const OutlierPanel = ({ data, aiInsights = [] }) => {
             <GraphEnclosure
               title="Five-Number Summary Diagnostic"
               subtitle="Distribution Analysis • Quartile-Based Dispersion Overview"
-              tooltipText="Confidence Interval: 95% σ-verified descriptive boundaries summary."
+              tooltip={getTooltipContent('boxplot')}
               icon={Terminal}
-              hasData={result.visualizations?.boxplot ? true : false}
+              hasData={Boolean(boxplotStats)}
             >
               <div className="space-y-6">
-                <BoxPlotComponent stats={result.visualizations.boxplot} />
+                <BoxPlotComponent stats={boxplotStats} />
                 
                 <div className="pt-6 border-t border-slate-900">
                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono mb-3">Calculated Statistical Boundaries</p>
@@ -411,6 +417,7 @@ const OutlierPanel = ({ data, aiInsights = [] }) => {
             <div className="flex justify-end mt-4">
               <button
                 onClick={handleApply}
+                data-testid="outlier-apply-btn"
                 disabled={applyLoading || result.total_outliers === 0}
                 className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-950 disabled:text-slate-600 border border-transparent disabled:border-slate-900 text-white rounded-md px-4 py-2 font-bold uppercase text-[11px] tracking-wide shadow-md active:scale-95 transition-all font-mono"
               >
@@ -421,6 +428,7 @@ const OutlierPanel = ({ data, aiInsights = [] }) => {
                 )}
                 {applyLoading ? "APPLYING CHANGES..." : "APPLY OUTLIER DETECTION"}
               </button>
+              <InfoTooltip {...getTooltipContent('applyOutliers')} iconSize={12} className="h-5 w-5 self-center" />
             </div>
             
             {result.applied && result.preview && (
