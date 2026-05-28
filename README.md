@@ -130,21 +130,3 @@ DAET supports a dual-AI engine configuration for generating explainable insights
    *(For production deployments, configure `GEMINI_API_KEY` under the Render Environment Variables tab).*
 
 Replace `<REPO_URL>` with this repository's clone URL or use your local copy.
-
-<!-- ## Engineering highlights
-
-- Explainable AI: statistical engines + Ollama LLMs with SQLite caching for fast, explainable recommendations.
-- Version lineage: DAG-based versioning with atomic, single-click rollbacks.
-- Async reporting: PDF generation runs in background tasks to keep APIs responsive.
-- Storage reconciliation: automated DB↔disk audits and healing for snapshot integrity.
-- Runtime safety: strict input/row validation and memory-safe dataframe parsing.
-
---- -->
-
-<!-- ## Showcase & portfolio
-
-- Full-stack: React + FastAPI with typed DTOs (Pydantic).
-- Data engineering: Pandas pipelines, outlier detection, and IPF weighting.
-- Orchestration: background tasks, snapshot lineage, and secure exports.
-- Local LLMs: Ollama integration with caching for explainability.
-- QA: Playwright end-to-end tests and Pytest unit coverage. -->
