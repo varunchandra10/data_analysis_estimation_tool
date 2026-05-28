@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const BASE_API_URL = import.meta.env.VITE_API_URL || 'https://data-analysis-estimation-tool.onrender.com';
 const AUTH_TOKEN_KEY = 'daet_auth_token';
 let reloginPromise = null;
 
