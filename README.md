@@ -66,6 +66,7 @@ Detailed implementation notes, directory breakdowns, dependencies, and execution
 | **AI LLM Engine** | Ollama (`phi3`) & Gemini API | Asynchronous local model client with Gemini 2.5 Flash API fallback for recommendations. |
 | **Reports** | ReportLab | Programmatic compiling of high-fidelity PDF analytics summaries. |
 | **Cryptography** | Pyca/Cryptography | AES encryption at rest and SHA-256 checksum verifications. |
+| **Containerization** | Docker | Dockerfile for a reproducible backend image; includes system libs for numeric packages and is used for local testing and Render deployments. |
 | **Backend Testing** | Pytest | Analytical validation and unit testing of APIs and engines. |
 
 ---
@@ -83,7 +84,7 @@ DAET/
 
 ---
 
-## ⚙️ Getting started (quick)
+## Getting started (quick)
 
 Clone the repo and enter the project folder:
 ```bash
@@ -108,6 +109,22 @@ npm install
 npm run dev
 ```
 
+### Docker setup
+
+DAET also includes a backend Docker image for local testing and Render deployment.
+
+Build the image from the repository root:
+```bash
+docker build -t daet-backend -f backend/Dockerfile backend
+```
+
+Run the image locally:
+```bash
+docker run --rm -p 8000:8000 --env-file .env daet-backend
+```
+
+For Render, create a Docker web service and point it at this repository. Render will use `backend/Dockerfile` automatically. Add secrets such as `GEMINI_API_KEY` in Render's Environment Variables, not in the repo.
+
 ### AI Configuration (Ollama & Gemini API)
 
 DAET supports a dual-AI engine configuration for generating explainable insights:
@@ -130,3 +147,4 @@ DAET supports a dual-AI engine configuration for generating explainable insights
    *(For production deployments, configure `GEMINI_API_KEY` under the Render Environment Variables tab).*
 
 Replace `<REPO_URL>` with this repository's clone URL or use your local copy.
+
