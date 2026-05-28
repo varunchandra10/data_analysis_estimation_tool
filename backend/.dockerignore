@@ -1,0 +1,11 @@
+venv
+.venv
+.env
+__pycache__
+*.pyc
+node_modules
+ai_cache
+datasets
+daet.sqlite3
+logs
+reports

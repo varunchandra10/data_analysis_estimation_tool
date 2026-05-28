@@ -24,17 +24,18 @@ A FastAPI service for ingesting and cleaning survey data, running validations an
 
 | Component | Tech | Notes |
 | --- | --- | --- |
-| Framework | FastAPI (Python 3.10+) | ASGI web framework
-| Data | Pandas, NumPy | Vectorized dataframe ops
-| Database | SQLite, SQLAlchemy | Lightweight relational store
-| Stats | SciPy, Statsmodels | Statistical algorithms
-| LLM / AI | Ollama (phi3) & Gemini API | Local Phi3 with Gemini 2.5 Flash API fallback
-| Reporting | ReportLab, Pillow | PDF & image generation
-| Validation | Pydantic v2 | DTOs and schema validation
-| Excel | openpyxl | Excel workbook parsing
-| Security | cryptography | AES, HMAC, SHA-256
-| Async | FastAPI BackgroundTasks | Background job execution
-| Testing | Pytest | Unit/integration tests
+| Framework | FastAPI (Python 3.10+) | ASGI web framework |
+| Data | Pandas, NumPy | Vectorized dataframe ops |
+| Database | SQLite, SQLAlchemy | Lightweight relational store |
+| Stats | SciPy, Statsmodels | Statistical algorithms |
+| LLM / AI | Ollama (phi3) & Gemini API | Local Phi3 with Gemini 2.5 Flash API fallback |
+| Reporting | ReportLab, Pillow | PDF & image generation |
+| Validation | Pydantic v2 | DTOs and schema validation |
+| Excel | openpyxl | Excel workbook parsing |
+| Security | cryptography | AES, HMAC, SHA-256 |
+| Containerization | Docker | Backend Dockerfile for local testing and Render deployment |
+| Async | FastAPI BackgroundTasks | Background job execution |
+| Testing | Pytest | Unit/integration tests |
 
 ---
 
@@ -167,6 +168,25 @@ Run tests:
 ```bash
 pytest
 ```
+
+## Docker
+
+The backend ships with a Dockerfile for local testing and Render deployment.
+
+Build from the repository root:
+```bash
+docker build -t daet-backend -f backend/Dockerfile backend
+```
+
+Run locally:
+```bash
+docker run --rm -p 8000:8000 --env-file ..\.env daet-backend
+```
+
+Render deployment notes:
+- Use a Docker web service so Render builds from `backend/Dockerfile`.
+- Set `GEMINI_API_KEY` and any other secrets in Render's Environment Variables.
+- Keep `.env` out of git; use local env files only for development.
 
 Notes
 - Use the PowerShell commands on Windows and `source` on Unix-like shells.
