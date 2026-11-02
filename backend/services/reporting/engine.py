@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -24,13 +25,19 @@ def _ensure_report_dir(dataset_name: str) -> Path:
     return reports
 
 
+_plot_lock = threading.Lock()
+
+
 def _render_histogram(df, column: str, out_path: Path):
-    plt.figure(figsize=(6, 3))
-    df[column].dropna().hist(bins=30)
-    plt.title(f'Distribution: {column}')
-    plt.tight_layout()
-    plt.savefig(out_path, dpi=150)
-    plt.close()
+    with _plot_lock:
+        fig = plt.figure(figsize=(6, 3))
+        try:
+            df[column].dropna().hist(bins=30)
+            plt.title(f'Distribution: {column}')
+            plt.tight_layout()
+            plt.savefig(out_path, dpi=150)
+        finally:
+            plt.close(fig)
 
 
 def generate_report(

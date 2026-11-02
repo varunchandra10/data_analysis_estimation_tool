@@ -26,6 +26,8 @@ from services.versioning.engine import save_stage_dataset
 from utils.dataset_storage import resolve_dataset_name
 from services.dataset_loader import load_dataset, validate_dataset_path, load_dataset_from_buffer
 from models.dataset_model import Dataset
+from models.user_model import User
+from services.auth_service import get_current_user
 from core.database import SessionLocal
 from utils.hash_utils import generate_sha256
 
@@ -75,7 +77,8 @@ async def full_dataset_preview(payload: UploadRequest):
 @log_calls
 async def upload_dataset(
     file: UploadFile = File(...),
-    db: Session = Depends(get_db_session)
+    db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user)
 ):
 
     if not file.filename.endswith(
@@ -102,11 +105,13 @@ async def upload_dataset(
                 detail="Dataset exceeds limit."
             )
 
+        user_id = getattr(current_user, 'id', None)
         saved_path = save_stage_dataset(
             dataset_source=df,
             dataset_name=file.filename,
             stage_name="raw",
             file_extension=Path(file.filename).suffix,
+            user_id=user_id,
         )
 
         safe_saved_path = resolve_safe_path(saved_path)
@@ -128,6 +133,7 @@ async def upload_dataset(
                     file_path=str(safe_saved_path),
                     version="raw",
                     status="raw",
+                    owner_id=user_id,
                     checksum=checksum,
                     size=size,
                     mime_type="text/csv" if file.filename.endswith(".csv") else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -136,6 +142,14 @@ async def upload_dataset(
                 db.commit()
                 db.refresh(db_dataset)
             else:
+                if db_dataset.owner_id is not None and user_id is not None and db_dataset.owner_id != user_id:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Forbidden: You do not own this dataset."
+                    )
+                if db_dataset.owner_id is None and user_id is not None:
+                    db_dataset.owner_id = user_id
+
                 db_dataset.file_path = str(safe_saved_path)
                 db_dataset.checksum = checksum
                 db_dataset.size = size
@@ -143,6 +157,8 @@ async def upload_dataset(
                 db_dataset.status = "raw"
                 db.commit()
                 db.refresh(db_dataset)
+        except HTTPException:
+            raise
         except Exception as e:
             if safe_saved_path.exists():
                 safe_saved_path.unlink()

@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { Database, ArrowRight } from "lucide-react";
 import { useDataset } from "../../../hooks/useDataset";
 import { useAIContext } from "../../../context/AIContext";
 import OutlierPanel from "./OutlierPanel";
 
 const OutlierContainer = () => {
+  const navigate = useNavigate();
   const { 
     datasetData, 
     runOutliersDetection, 
@@ -14,28 +17,43 @@ const OutlierContainer = () => {
 
   const { outlierInsights, setAIResults, setAIResultsSourcePath } = useAIContext();
 
-  const [selectedColumn, setSelectedColumn] = useState("");
+  const [localColumn, setLocalColumn] = useState("");
   const [method, setMethod] = useState("iqr");
-  const [result, setResult] = useState(null);
+  const [localResult, setLocalResult] = useState(null);
   const [detectLoading, setDetectLoading] = useState(false);
   const [applyLoading, setApplyLoading] = useState(false);
 
-  // Sync with context outlierResult if needed, or manage locally
-  useEffect(() => {
-    if (outlierResult && !result) {
-      setResult(outlierResult);
-    }
-  }, [outlierResult]);
+  // Derive active result from local run or context
+  const result = localResult ?? outlierResult;
 
-  const handleDetect = async () => {
-    if (!selectedColumn) return;
+  // Extract numerical columns safely
+  const numericColumns = useMemo(() => {
+    if (!datasetData?.schema || !Array.isArray(datasetData.schema)) return [];
+    return datasetData.schema.filter(
+      (col) => col.type === "Numerical" || col.type === "numeric" || col.type === "Integer" || col.type === "Float"
+    );
+  }, [datasetData]);
+
+  // Derive preferred initial column (AI recommended or first numeric)
+  const defaultColumn = useMemo(() => {
+    if (numericColumns.length === 0) return "";
+    const aiRec = outlierInsights?.find(i => numericColumns.some(nc => nc.column === i.column));
+    return aiRec ? aiRec.column : numericColumns[0].column;
+  }, [numericColumns, outlierInsights]);
+
+  const selectedColumn = localColumn || defaultColumn;
+
+  const handleDetect = async (colToUse, methodToUse) => {
+    const col = colToUse || selectedColumn;
+    const m = methodToUse || method;
+    if (!col) return;
     setDetectLoading(true);
     try {
-      const response = await runOutliersDetection(selectedColumn, method);
-      setResult({
+      const response = await runOutliersDetection(col, m);
+      setLocalResult({
         ...response,
-        column: selectedColumn,
-        method: method
+        column: col,
+        method: m
       });
     } catch (err) {
       console.error("Outlier detection error:", err);
@@ -49,7 +67,7 @@ const OutlierContainer = () => {
     setApplyLoading(true);
     try {
       const response = await commitOutliersFilter(selectedColumn, method);
-      setResult((r) => ({
+      setLocalResult((r) => ({
         ...r,
         applied: true,
         file_path: response.file_path,
@@ -66,18 +84,42 @@ const OutlierContainer = () => {
     }
   };
 
-  if (!datasetData) return null;
+  // Standby Empty State if no active dataset buffer is hydrated
+  if (!datasetData) {
+    return (
+      <div className="flex flex-col items-center justify-center p-16 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm max-w-xl mx-auto my-12 font-sans">
+        <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 mb-4 shadow-2xs">
+          <Database size={28} />
+        </div>
+        <h3 className="text-base font-bold text-slate-900 dark:text-white font-mono uppercase tracking-tight">
+          No Active Dataset Buffer
+        </h3>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 max-w-sm leading-relaxed">
+          Ingest a microdata dataset or select an active file in Dataset Explorer to run outlier vector analysis and dispersion scans.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate('/dataset-explorer')}
+          className="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-all cursor-pointer font-mono"
+        >
+          <span>Open Dataset Explorer</span>
+          <ArrowRight size={13} />
+        </button>
+      </div>
+    );
+  }
 
   return (
     <OutlierPanel
       data={datasetData}
+      numericColumns={numericColumns}
       aiInsights={outlierInsights}
       selectedColumn={selectedColumn}
-      setSelectedColumn={setSelectedColumn}
+      setSelectedColumn={setLocalColumn}
       method={method}
       setMethod={setMethod}
       result={result}
-      loading={detectLoading}
+      loading={detectLoading || datasetLoading}
       applyLoading={applyLoading}
       onDetect={handleDetect}
       onApply={handleApply}

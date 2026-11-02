@@ -3,7 +3,9 @@ import { motion } from "framer-motion";
 import { ShieldCheck, Zap, Database, BarChart3, ChevronRight, Terminal, Sun, Moon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import DataGridBackground from "../../components/UI/DataGridBackground";
+import Footer from "../../components/UI/Footer";
 import { useTheme } from "../../context/ThemeContext";
+import { useAuthContext } from "../../context/AuthContext";
 
 const themeStyles = {
   page: {
@@ -43,6 +45,7 @@ const Mainpage = () => {
   const [isLoaded, setIsLoaded] = useState(false);
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const { isAuthenticated, username, openLoginModal, logout } = useAuthContext();
   const isDark = theme === 'dark';
 
   useEffect(() => {
@@ -59,21 +62,44 @@ const Mainpage = () => {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 h-[620px] w-[860px] rounded-full blur-[140px] pointer-events-none" style={{ backgroundColor: themeStyles.glowBlue }} />
       <div className="absolute right-[-6rem] top-24 h-72 w-72 rounded-full blur-[120px] pointer-events-none" style={{ backgroundColor: themeStyles.glowIndigo }} />
 
-      <button
-        type="button"
-        onClick={toggleTheme}
-        className="fixed right-4 top-4 z-30 inline-flex items-center gap-2 rounded-sm border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] shadow-lg backdrop-blur transition-all duration-200 sm:right-6 sm:top-6 cursor-pointer"
-        style={{
-          ...themeStyles.button,
-          backgroundColor: 'var(--bg-secondary)',
-          borderWidth: '1px',
-        }}
-        title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-        aria-label="Toggle theme"
-      >
-        {isDark ? <Sun size={14} style={themeStyles.accentText} /> : <Moon size={14} style={themeStyles.accentText} />}
-        <span>{isDark ? 'Light' : 'Dark'}</span>
-      </button>
+      <div className="fixed right-4 top-4 z-30 flex items-center gap-2 sm:right-6 sm:top-6">
+        <button
+          type="button"
+          onClick={isAuthenticated ? logout : openLoginModal}
+          className="inline-flex items-center gap-2 rounded-sm border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] shadow-lg backdrop-blur transition-all duration-200 cursor-pointer"
+          style={{
+            ...themeStyles.button,
+            backgroundColor: 'var(--bg-secondary)',
+            borderWidth: '1px',
+          }}
+          title={isAuthenticated ? 'Click to sign out' : 'Sign in to DAET'}
+        >
+          {isAuthenticated ? (
+            <>
+              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              <span>{username || 'Session'}</span>
+            </>
+          ) : (
+            <span>Sign In</span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className="inline-flex items-center gap-2 rounded-sm border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] shadow-lg backdrop-blur transition-all duration-200 cursor-pointer"
+          style={{
+            ...themeStyles.button,
+            backgroundColor: 'var(--bg-secondary)',
+            borderWidth: '1px',
+          }}
+          title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          aria-label="Toggle theme"
+        >
+          {isDark ? <Sun size={14} style={themeStyles.accentText} /> : <Moon size={14} style={themeStyles.accentText} />}
+          <span>{isDark ? 'Light' : 'Dark'}</span>
+        </button>
+      </div>
 
       {/* ===================== HERO MAIN INTERFACE ===================== */}
       <div className="relative z-10 mx-auto flex max-w-7xl flex-col items-center px-6 py-24 text-center sm:px-8 lg:px-12">
@@ -165,6 +191,9 @@ const Mainpage = () => {
 
         </div>
       </section>
+
+      {/* ===================== FOOTER ===================== */}
+      <Footer />
     </div>
   );
 };

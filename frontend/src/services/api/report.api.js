@@ -8,3 +8,7 @@ export const generateReport = async (versionName, datasetName, projectId = null)
   if (projectId) payload.project_id = projectId;
   return httpClient.post('/api/report/generate', payload);
 };
+
+export const getReportStatus = async (taskId) => {
+  return httpClient.get(`/api/report/status/${encodeURIComponent(taskId)}`);
+};

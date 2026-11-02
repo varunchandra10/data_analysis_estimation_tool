@@ -3,9 +3,19 @@ import httpClient from './httpClient';
 const TOKEN_KEY = 'daet_auth_token';
 const USERNAME_KEY = 'daet_auth_username';
 
+export const register = async (username, email, password) => {
+  const response = await httpClient.post('/api/auth/register', { username, email, password });
+  return response;
+};
+
 export const login = async (username, password) => {
   const response = await httpClient.post('/api/auth/login', { username, password });
-  const token = response?.data?.access_token || response?.access_token || response?.data?.data?.access_token;
+  const token =
+    response?.data?.access_token ||
+    response?.access_token ||
+    response?.data?.data?.access_token ||
+    response?.data?.token;
+
   if (token) {
     setToken(token);
     setAuthUsername(username);
@@ -14,7 +24,7 @@ export const login = async (username, password) => {
 };
 
 export const logout = () => {
-  removeToken();
+  clearAuthSession();
 };
 
 export const getToken = () => {
@@ -41,23 +51,9 @@ export const removeAuthUsername = () => {
   localStorage.removeItem(USERNAME_KEY);
 };
 
-export const autoLogin = async () => {
-  const currentToken = getToken();
-  if (currentToken) {
-    return currentToken;
-  }
-  try {
-    const response = await login('testuser', 'testpassword');
-    return response?.data?.access_token || response?.access_token || response?.data?.data?.access_token || getToken();
-  } catch (error) {
-    console.error('Auto login failed:', error);
-    throw error;
-  }
-};
-
 export const bootstrapAuthSession = async () => {
-  const token = await autoLogin();
-  const username = getAuthUsername() || 'testuser';
+  const token = getToken();
+  const username = getAuthUsername() || '';
   return {
     token,
     username,

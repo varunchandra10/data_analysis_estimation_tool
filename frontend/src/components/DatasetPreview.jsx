@@ -1,371 +1,365 @@
-import React, { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-  Database,
   Table,
   Type,
-  Hash,
-  FileSpreadsheet,
-  AlertCircle,
   Eye,
   Loader2,
-  Filter,
-  ArrowDownWideNarrowIcon,
-  Sigma
+  Sigma,
+  Download,
+  ArrowRight,
+  BarChart2,
+  FileText,
 } from 'lucide-react';
+
+// Modular Reusable Dataset Components
+import {
+  DatasetKpiCards,
+  PipelineActionStrip,
+  ColumnDiagnosticsGrid,
+  DataDictionaryTable,
+  DataGridTable,
+  AttributeProfiler,
+} from './dataset';
+
 import StatisticsPanel from './StatisticsPanel';
 
-const DatasetPreview = ({ data, aiResults }) => {
-  const [activeTab, setActiveTab] = useState('schema');
+/**
+ * DatasetPreview - Orchestrator Component
+ * Composes reusable data domain components (KPI cards, pipeline actions, column diagnostics,
+ * schema specification dictionary, spreadsheet data grid, attribute profiler, and statistics panel).
+ */
+export default function DatasetPreview({ data, aiResults }) {
+  const navigate = useNavigate();
 
-  const formatCount = (value) => {
-    if (Array.isArray(value)) return value.length.toLocaleString();
-    if (typeof value === 'number') return value.toLocaleString();
-    if (value && typeof value === 'object') {
-      const numericValue = Number(value.rows ?? value.total_rows ?? value.count);
-      return Number.isFinite(numericValue) ? numericValue.toLocaleString() : '0';
+  // Navigation & View States
+  const [activeTab, setActiveTab] = useState('schema'); // 'schema' | 'preview' | 'profiles' | 'statistics'
+  const [selectedProfileCol, setSelectedProfileCol] = useState(null);
+
+  const preview = useMemo(() => data?.preview || [], [data?.preview]);
+  const metadata = data?.metadata;
+  const statistics = data?.statistics;
+
+  // Schema normalizer
+  const schema = useMemo(() => {
+    if (Array.isArray(data?.schema) && data.schema.length > 0) return data.schema;
+    if (preview && preview.length > 0) {
+      return Object.keys(preview[0]).map((column) => ({
+        column,
+        type: typeof preview[0][column] === 'number' ? 'Numerical' : 'Categorical',
+        pandas_dtype: typeof preview[0][column] === 'number' ? 'float64' : 'object',
+      }));
     }
-    return '0';
-  };
+    return [];
+  }, [data?.schema, preview]);
 
+  const previewColumns = useMemo(() => {
+    return preview && preview.length > 0 ? Object.keys(preview[0]) : [];
+  }, [preview]);
+
+  const aiRecommendations = useMemo(() => {
+    return aiResults?.recommendations || [];
+  }, [aiResults]);
+
+  // Macro Metrics Calculations
+  const totalRows = metadata?.rows ?? preview.length;
+  const totalColumns = metadata?.columns ?? schema.length;
+  const nullCounts = useMemo(() => metadata?.null_counts || {}, [metadata?.null_counts]);
+
+  const totalNullCells = useMemo(() => {
+    return Object.values(nullCounts).reduce((acc, curr) => acc + Number(curr || 0), 0);
+  }, [nullCounts]);
+
+  const columnsWithNulls = useMemo(() => {
+    return Object.entries(nullCounts).filter(([, count]) => count > 0);
+  }, [nullCounts]);
+
+  const numericalColumns = useMemo(() => {
+    return schema.filter(
+      (s) => s.type === 'Numerical' || s.type === 'Integer' || s.type === 'Float'
+    );
+  }, [schema]);
+
+  const categoricalColumns = useMemo(() => {
+    return schema.filter(
+      (s) => s.type !== 'Numerical' && s.type !== 'Integer' && s.type !== 'Float'
+    );
+  }, [schema]);
+
+  const missingPercentage = useMemo(() => {
+    const totalCells = totalRows * (totalColumns || 1);
+    if (!totalCells) return 0;
+    return ((totalNullCells / totalCells) * 100).toFixed(2);
+  }, [totalRows, totalColumns, totalNullCells]);
+
+  const integrityScore = useMemo(() => {
+    const penalty = parseFloat(missingPercentage) * 4;
+    return Math.max(70, Math.min(100, Math.round(100 - penalty)));
+  }, [missingPercentage]);
+
+  // Active selected profile column for Tab 3
+  const activeProfileColumn =
+    selectedProfileCol || (numericalColumns[0]?.column || previewColumns[0] || '');
+
+  // Guard against unhydrated dataset context
   if (!data || !data.metadata) {
     return (
-      <div className="w-full flex flex-col items-center justify-center p-24 text-slate-400 bg-slate-950 rounded-lg border border-slate-800 font-sans shadow-inner">
-        <Loader2 className="animate-spin mb-4 text-indigo-500" size={24} />
-        <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+      <div className="w-full flex flex-col items-center justify-center p-24 text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 font-sans shadow-sm">
+        <Loader2 className="animate-spin mb-4 text-indigo-500" size={28} />
+        <p className="text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
           Initializing Dataset Context...
         </p>
       </div>
     );
   }
-  const { metadata, preview, statistics } = data;
-  const schema = Array.isArray(data.schema) && data.schema.length > 0
-    ? data.schema
-    : (preview && preview.length > 0)
-      ? Object.keys(preview[0]).map((column) => ({
-          column,
-          type: 'Unknown',
-          pandas_dtype: 'unknown',
-        }))
-      : [];
 
-  const previewColumns = (preview && preview.length > 0) ? Object.keys(preview[0]) : [];
-  const aiRecommendations = aiResults?.recommendations || [];
+  // Export Handlers
+  const handleExportCSV = () => {
+    if (!preview || preview.length === 0) return;
+    const cols = Object.keys(preview[0]);
+    const csvContent = [cols.join(',')];
+    preview.forEach((row) => {
+      csvContent.push(cols.map((col) => `"${row[col] ?? ''}"`).join(','));
+    });
+    const blob = new Blob([csvContent.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${metadata?.filename || 'dataset'}_preview.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportMetadata = () => {
+    const metaJSON = JSON.stringify({ metadata, schema, statistics }, null, 2);
+    const blob = new Blob([metaJSON], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${metadata?.filename || 'dataset'}_profile.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleColumnSelect = (colName) => {
+    setSelectedProfileCol(colName);
+    setActiveTab('profiles');
+  };
 
   return (
-    <div className="w-full max-w-[1600px] mx-auto mt-4 px-4 sm:px-6 animate-in fade-in duration-200 antialiased font-sans text-slate-200">
+    <div className="w-full max-w-[1700px] mx-auto px-4 sm:px-6 py-4 animate-in fade-in duration-200 antialiased font-sans text-slate-800 dark:text-slate-100">
       
-      {/* ================================================= */}
-      {/* METADATA SUMMARY GRID */}
-      {/* ================================================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-
-        {/* SOURCE MATRIX */}
-        <div className="bg-slate-900 border border-slate-800/80 p-4 rounded-xl flex items-center gap-4 shadow-sm hover:border-slate-700/80 transition-all duration-150">
-          <div className="p-2.5 bg-slate-800 text-indigo-400 rounded-lg border border-slate-700/50 shrink-0">
-            <FileSpreadsheet size={16} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">Dataset Filename</p>
-            <h4 className="text-sm font-semibold text-slate-100 truncate">
-              {metadata?.filename ?? 'system_buffer_01.csv'}
-            </h4>
-          </div>
+      {/* ========================================================= */}
+      {/* 1. SOURCE BUFFER STATUS & WORKSPACE TOOLBAR              */}
+      {/* ========================================================= */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3.5 mb-5 border-b border-slate-200 dark:border-slate-800 gap-3">
+        <div className="flex items-center gap-2.5">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 shadow-2xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Source Buffer Ready
+          </span>
+          <span className="text-xs font-mono text-slate-400 dark:text-slate-500 hidden sm:inline">
+            • Active In-Memory Microdata Stream
+          </span>
         </div>
 
-        {/* ROW COUNTER */}
-        <div className="bg-slate-900 border border-slate-800/80 p-4 rounded-xl flex items-center gap-4 shadow-sm hover:border-slate-700/80 transition-all duration-150">
-          <div className="p-2.5 bg-slate-800 text-emerald-400 rounded-lg border border-slate-700/50 shrink-0">
-            <Hash size={16} />
-          </div>
-          <div>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">Observations (N)</p>
-            <h4 className="text-sm font-semibold text-slate-100 font-mono">
-              {formatCount(metadata?.rows)}
-            </h4>
-          </div>
-        </div>
+        {/* Quick Action Toolbar */}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => navigate('/whole-dataset')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 text-slate-700 dark:text-slate-200 shadow-2xs transition-all cursor-pointer"
+            title="Inspect full dataset with pagination & virtual scrolling"
+          >
+            <Table size={13} className="text-indigo-500" />
+            <span>Full Dataset Viewer</span>
+            <ArrowRight size={12} className="text-slate-400" />
+          </button>
 
-        {/* FEATURE COUNTER */}
-        <div className="bg-slate-900 border border-slate-800/80 p-4 rounded-xl flex items-center gap-4 shadow-sm hover:border-slate-700/80 transition-all duration-150">
-          <div className="p-2.5 bg-slate-800 text-amber-400 rounded-lg border border-slate-700/50 shrink-0">
-            <Database size={16} />
-          </div>
-          <div>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">Features (P)</p>
-            <h4 className="text-sm font-semibold text-slate-100 font-mono">
-              {formatCount(metadata?.columns)}
-            </h4>
-          </div>
-        </div>
+          <button
+            onClick={handleExportCSV}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 text-slate-700 dark:text-slate-200 shadow-2xs transition-all cursor-pointer"
+            title="Download preview rows as CSV"
+          >
+            <Download size={13} className="text-slate-500 dark:text-slate-400" />
+            <span>Export CSV</span>
+          </button>
 
-        {/* DATA INTEGRITY COMPUTE */}
-        <div className="bg-slate-900 border border-slate-800/80 p-4 rounded-xl flex items-center gap-4 shadow-sm hover:border-slate-700/80 transition-all duration-150">
-          <div className="p-2.5 bg-slate-800 text-slate-400 rounded-lg border border-slate-700/50 shrink-0">
-            <Filter size={16} />
-          </div>
-          <div className="w-full">
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">Integrity Index</p>
-            <div className="flex items-center gap-3 mt-1">
-              <span className="text-[11px] font-bold text-emerald-400 tracking-wide">HIGH</span>
-              <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-500 w-[94%] rounded-full" />
-              </div>
-            </div>
-          </div>
+          <button
+            onClick={handleExportMetadata}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 text-slate-700 dark:text-slate-200 shadow-2xs transition-all cursor-pointer"
+            title="Export schema and profile metadata as JSON"
+          >
+            <FileText size={13} className="text-slate-500 dark:text-slate-400" />
+            <span>Export Metadata</span>
+          </button>
         </div>
-
       </div>
 
-      {/* ================================================= */}
-      {/* STATISTICAL & DATA TYPE HEURISTICS PANEL */}
-      {/* ================================================= */}
-      {aiRecommendations.length > 0 && (
-        <div className="mb-6 rounded-xl border border-slate-800 bg-slate-900 overflow-hidden shadow-sm">
-          <div className="px-5 py-4 border-b border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/60">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-indigo-400">Automated Column Diagnostics</p>
-              <p className="text-xs text-slate-400 mt-0.5">Pipeline type mapping warnings and profiling alerts triggered for {aiRecommendations.length} attributes.</p>
-            </div>
-            <span className="self-start sm:self-center text-[10px] font-bold uppercase tracking-wider text-slate-300 bg-slate-800 px-3 py-1 rounded-md border border-slate-700/60 font-mono">
-              {aiResults?.status || 'success_execution'}
-            </span>
-          </div>
-          <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-3 bg-slate-950/20">
-            {aiRecommendations.slice(0, 6).map((item, index) => {
-              const recommendation = item.recommendations || {};
-              const warnings = recommendation.warnings || [];
+      {/* ========================================================= */}
+      {/* 2. FIVE KEY MACRO INTELLIGENCE CARDS (REUSABLE COMPONENT)  */}
+      {/* ========================================================= */}
+      <DatasetKpiCards
+        metadata={metadata}
+        schema={schema}
+        totalRows={totalRows}
+        totalColumns={totalColumns}
+        numericalCount={numericalColumns.length}
+        categoricalCount={categoricalColumns.length}
+        totalNullCells={totalNullCells}
+        missingPercentage={missingPercentage}
+        columnsWithNullsCount={columnsWithNulls.length}
+        integrityScore={integrityScore}
+        className="mb-5"
+      />
 
-              return (
-                <div key={index} className="rounded-xl border border-slate-800 bg-slate-900/40 p-4 shadow-sm hover:bg-slate-900/80 hover:border-slate-700/80 transition-all duration-150">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-slate-100 truncate font-mono">{item.column}</p>
-                      <p className="text-[10px] font-medium text-slate-400 mt-0.5 tracking-wide">{item.type}</p>
-                    </div>
-                    <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                      {recommendation.confidence ?? 0}% match
-                    </span>
-                  </div>
-                  <div className="mt-3.5 space-y-2 border-t border-slate-800/80 pt-3 text-xs">
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-400 text-[11px]">Missing Value Strategy:</span>
-                      <span className="text-slate-200 font-medium font-mono bg-slate-800 px-2 py-0.5 rounded border border-slate-700/40 text-[10px]">{recommendation.missing_value_method || 'review'}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-400 text-[11px]">Outlier Out-of-Bounds:</span>
-                      <span className="text-slate-200 font-medium font-mono bg-slate-800 px-2 py-0.5 rounded border border-slate-700/40 text-[10px]">{recommendation.outlier_method || 'review'}</span>
-                    </div>
-                    {warnings.length > 0 && (
-                      <div className="text-amber-400 text-[11px] mt-3 flex items-start gap-1.5 bg-amber-500/5 border border-amber-500/10 p-2 rounded-lg">
-                        <AlertCircle size={14} className="shrink-0 mt-0.5 text-amber-500" />
-                        <span className="leading-tight">{warnings[0]}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* ========================================================= */}
+      {/* 3. INTERACTIVE SMART PIPELINE ACTION STRIP (REUSABLE)      */}
+      {/* ========================================================= */}
+      <PipelineActionStrip
+        columnsWithNullsCount={columnsWithNulls.length}
+        onNavigate={navigate}
+        className="mb-5"
+      />
 
-      {/* ================================================= */}
-      {/* DATAGRID MANAGEMENT MODULE */}
-      {/* ================================================= */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-lg overflow-hidden mb-8">
+      {/* ========================================================= */}
+      {/* 4. AUTOMATED COLUMN DIAGNOSTICS GRID (REUSABLE)            */}
+      {/* ========================================================= */}
+      <ColumnDiagnosticsGrid
+        diagnostics={aiRecommendations}
+        schema={schema}
+        nullCounts={nullCounts}
+        totalRows={totalRows}
+        onColumnClick={handleColumnSelect}
+        className="mb-6"
+      />
 
-        {/* TAB CONTROLS */}
-        <div className="flex items-center justify-between border-b border-slate-800 px-5 bg-slate-900/40">
-          <div className="flex gap-6 flex-wrap">
+      {/* ========================================================= */}
+      {/* 5. MAIN TABBED EXPLORATION MODULE                         */}
+      {/* ========================================================= */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden mb-8">
+        
+        {/* TAB CONTROLS HEADER */}
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 px-5 bg-slate-50/80 dark:bg-slate-900/60 overflow-x-auto">
+          <div className="flex gap-6 shrink-0">
             
-            {/* SCHEMA SPECIFICATION TAB */}
+            {/* TAB 1: SCHEMA */}
             <button
               onClick={() => setActiveTab('schema')}
-              className={`py-3.5 text-xs font-semibold tracking-wide flex items-center gap-2 transition-all relative ${
-                activeTab === 'schema' ? 'text-indigo-400' : 'text-slate-400 hover:text-slate-200'
+              className={`py-3.5 text-xs font-semibold tracking-wide flex items-center gap-2 transition-all relative cursor-pointer ${
+                activeTab === 'schema'
+                  ? 'text-indigo-600 dark:text-indigo-400 font-bold'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
               }`}
             >
               <Type size={14} />
               <span>Schema Specification</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-200 dark:bg-slate-800 font-mono">
+                {schema.length}
+              </span>
               {activeTab === 'schema' && (
-                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-indigo-500 rounded-full" />
+                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-indigo-600 dark:bg-indigo-500 rounded-full" />
               )}
             </button>
 
-            {/* DATA MATRIX EXPLORER TAB */}
+            {/* TAB 2: DATA EXPLORER */}
             <button
               onClick={() => setActiveTab('preview')}
-              className={`py-3.5 text-xs font-semibold tracking-wide flex items-center gap-2 transition-all relative ${
-                activeTab === 'preview' ? 'text-indigo-400' : 'text-slate-400 hover:text-slate-200'
+              className={`py-3.5 text-xs font-semibold tracking-wide flex items-center gap-2 transition-all relative cursor-pointer ${
+                activeTab === 'preview'
+                  ? 'text-indigo-600 dark:text-indigo-400 font-bold'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
               }`}
             >
               <Eye size={14} />
-              <span>Data Explorer</span>
+              <span>Data Grid Preview</span>
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-200 dark:bg-slate-800 font-mono">
+                {preview.length} rows
+              </span>
               {activeTab === 'preview' && (
-                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-indigo-500 rounded-full" />
+                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-indigo-600 dark:bg-indigo-500 rounded-full" />
               )}
             </button>
 
-            {/* DESCRIPTIVE STATS TAB */}
+            {/* TAB 3: COLUMN PROFILES & HISTOGRAMS */}
+            <button
+              onClick={() => setActiveTab('profiles')}
+              className={`py-3.5 text-xs font-semibold tracking-wide flex items-center gap-2 transition-all relative cursor-pointer ${
+                activeTab === 'profiles'
+                  ? 'text-indigo-600 dark:text-indigo-400 font-bold'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+              }`}
+            >
+              <BarChart2 size={14} />
+              <span>Visual Attribute Profiler</span>
+              {activeTab === 'profiles' && (
+                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-indigo-600 dark:bg-indigo-500 rounded-full" />
+              )}
+            </button>
+
+            {/* TAB 4: DESCRIPTIVE STATISTICS */}
             <button
               onClick={() => setActiveTab('statistics')}
-              className={`py-3.5 text-xs font-semibold tracking-wide flex items-center gap-2 transition-all relative ${
-                activeTab === 'statistics' ? 'text-indigo-400' : 'text-slate-400 hover:text-slate-200'
+              className={`py-3.5 text-xs font-semibold tracking-wide flex items-center gap-2 transition-all relative cursor-pointer ${
+                activeTab === 'statistics'
+                  ? 'text-indigo-600 dark:text-indigo-400 font-bold'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
               }`}
             >
               <Sigma size={14} />
               <span>Descriptive Statistics</span>
               {activeTab === 'statistics' && (
-                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-indigo-500 rounded-full" />
+                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-indigo-600 dark:bg-indigo-500 rounded-full" />
               )}
             </button>
           </div>
         </div>
 
-        <div className="relative">
+        {/* TAB 1: REUSABLE DATA DICTIONARY TABLE */}
+        {activeTab === 'schema' && (
+          <DataDictionaryTable
+            schema={schema}
+            nullCounts={nullCounts}
+            totalRows={totalRows}
+            onColumnClick={handleColumnSelect}
+          />
+        )}
 
-          {/* ================================================= */}
-          {/* SCHEMA SPECIFICATION ARRAY */}
-          {/* ================================================= */}
-          {activeTab === 'schema' && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-slate-900/80 text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-800">
-                    <th className="px-6 py-3.5 font-semibold">Field Label</th>
-                    <th className="px-6 py-3.5 font-semibold">Semantic Mapping</th>
-                    <th className="px-6 py-3.5 font-semibold">Engine DType</th>
-                    <th className="px-6 py-3.5 font-semibold text-right">Null Distribution</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/50 bg-slate-950/10">
-                  {schema.map((col, idx) => {
-                    const nullCount = metadata?.null_counts?.[col.column] ?? 0;
-                    const rowCount = metadata?.rows ?? 1;
-                    const nullPercent = ((nullCount / rowCount) * 100).toFixed(1);
-                    const isHealthy = parseFloat(nullPercent) < 5;
+        {/* TAB 2: REUSABLE DATA GRID TABLE */}
+        {activeTab === 'preview' && (
+          <DataGridTable
+            rows={preview}
+            columns={previewColumns}
+            totalRows={totalRows}
+            onExportCSV={handleExportCSV}
+            onOpenFullDataset={() => navigate('/whole-dataset')}
+          />
+        )}
 
-                    return (
-                      <tr key={idx} className="group hover:bg-slate-800/30 transition-colors">
-                        <td className="px-6 py-3 font-semibold text-slate-100 font-mono">{col.column}</td>
-                        <td className="px-6 py-3">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-md border text-[10px] font-medium ${
-                            col.type === 'Numerical'
-                              ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/20'
-                              : 'bg-slate-800 border-slate-700 text-slate-300'
-                          }`}>
-                            {col.type}
-                          </span>
-                        </td>
-                        <td className="px-6 py-3">
-                          <code className="px-2 py-0.5 bg-slate-950 border border-slate-800 text-slate-400 rounded text-[10px] font-mono">
-                            {col.pandas_dtype}
-                          </code>
-                        </td>
-                        <td className="px-6 py-3">
-                          <div className="flex flex-col items-end gap-1.5">
-                            <span className={`text-[11px] font-mono font-medium ${nullCount > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
-                              {nullPercent}% <span className="text-[10px] text-slate-500 font-sans font-normal">NaN</span>
-                            </span>
-                            <div className="w-28 h-1 bg-slate-950 border border-slate-800/60 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full transition-all duration-500 rounded-full ${isHealthy ? 'bg-emerald-500' : 'bg-amber-500'}`}
-                                style={{ width: `${100 - nullPercent}%` }}
-                              />
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+        {/* TAB 3: REUSABLE ATTRIBUTE PROFILER */}
+        {activeTab === 'profiles' && (
+          <AttributeProfiler
+            schema={schema}
+            previewRows={preview}
+            nullCounts={nullCounts}
+            selectedColumn={activeProfileColumn}
+            onSelectColumn={setSelectedProfileCol}
+          />
+        )}
 
-          {/* ================================================= */}
-          {/* SPREADSHEET MATRIX PREVIEW */}
-          {/* ================================================= */}
-          {activeTab === 'preview' && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs whitespace-nowrap border-collapse">
-                <thead>
-                  <tr className="bg-slate-900/80 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-800">
-                    {previewColumns.map((col, idx) => (
-                      <th key={idx} className="px-5 py-3 font-semibold border-r border-slate-800/60 last:border-0">
-                        <div className="flex items-center justify-between gap-4">
-                          <span className="font-mono text-slate-300">{col}</span>
-                          <ArrowDownWideNarrowIcon size={12} className="text-slate-500 opacity-60 hover:text-slate-300 cursor-pointer" />
-                        </div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/40 bg-slate-950/5 font-mono text-[11px]">
-                  {preview?.length > 0 ? (
-                    preview.map((row, rowIdx) => (
-                      <tr key={rowIdx} className="hover:bg-slate-800/30 transition-colors">
-                        {previewColumns.map((col, colIdx) => (
-                          <td key={colIdx} className="px-5 py-2.5 border-r border-slate-800/40 last:border-0 text-slate-300">
-                            {row[col] === null ? (
-                              <span className="text-rose-400/80 font-medium bg-rose-500/5 px-1 py-0.5 rounded border border-rose-500/10 text-[10px]">
-                                NaN
-                              </span>
-                            ) : (
-                              <span className="text-slate-300">
-                                {typeof row[col] === 'number' ? row[col].toLocaleString() : String(row[col])}
-                              </span>
-                            )}
-                          </td>
-                        ))}
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={previewColumns.length || 1} className="p-16 text-center text-slate-500 italic text-sm font-sans">
-                        No transactional data logs matching current frame layout parameters.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-
-              {/* FOOTER CONSOLE BAR */}
-              <div className="px-5 py-3 bg-slate-900/80 flex flex-col sm:flex-row sm:items-center justify-between border-t border-slate-800 text-xs text-slate-400 gap-2">
-                <div className="flex items-center gap-3 font-medium text-slate-400">
-                  <span className="flex items-center gap-1.5 text-indigo-400 font-semibold">
-                    <Table size={13} />
-                    Buffered Head: {preview?.length || 0} rows
-                  </span>
-                  <span className="text-slate-700">|</span>
-                  <span>Total Frame Profile N: {(metadata?.rows ?? 0).toLocaleString()} observations</span>
-                </div>
-                <button className="self-start sm:self-auto font-semibold text-indigo-400 hover:text-indigo-300 transition-colors text-xs">
-                  Export Dataset Profile Metadata (JSON)
-                </button>
+        {/* TAB 4: DESCRIPTIVE STATISTICS */}
+        {activeTab === 'statistics' && (
+          <div className="p-5 bg-slate-50/20 dark:bg-slate-950/20">
+            {statistics ? (
+              <StatisticsPanel statistics={statistics} />
+            ) : (
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 p-12 text-center text-sm text-slate-500">
+                Descriptive statistics are not available for this dataset version yet.
               </div>
-            </div>
-          )}
+            )}
+          </div>
+        )}
 
-          {/* ================================================= */}
-          {/* STATISTICAL DESC PANEL PANEL */}
-          {/* ================================================= */}
-          {activeTab === 'statistics' && (
-            <div className="p-5 bg-slate-950/10">
-              {statistics ? (
-                <StatisticsPanel statistics={statistics} />
-              ) : (
-                <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-8 text-center text-sm text-slate-400">
-                  Descriptive statistics are not available for this dataset version yet.
-                </div>
-              )}
-            </div>
-          )}
-
-        </div>
       </div>
     </div>
   );
-};
-
-export default DatasetPreview;
+}

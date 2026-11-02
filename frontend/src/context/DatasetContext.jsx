@@ -5,12 +5,18 @@ export const DatasetContext = createContext(null);
 
 export function DatasetProvider({ children }) {
   const {
-    datasetData, setDatasetData,
-    activeTab, setActiveTab,
-    analyticsViewData, setAnalyticsViewData,
-    aiResults, setAIResults,
-    aiResultsSourcePath, setAIResultsSourcePath,
-    resetSession
+    loadingSession,
+    datasetData,
+    setDatasetData,
+    activeTab,
+    setActiveTab,
+    analyticsViewData,
+    setAnalyticsViewData,
+    aiResults,
+    setAIResults,
+    aiResultsSourcePath,
+    setAIResultsSourcePath,
+    resetSession,
   } = useDAETSession();
 
   const [validationResult, setValidationResult] = useState(null);
@@ -29,6 +35,7 @@ export function DatasetProvider({ children }) {
   return (
     <DatasetContext.Provider
       value={{
+        loadingSession,
         datasetData,
         setDatasetData,
         activeTab,
@@ -47,7 +54,7 @@ export function DatasetProvider({ children }) {
         setOutlierResult,
         duplicateResult,
         setDuplicateResult,
-        resetSession: handleReset
+        resetSession: handleReset,
       }}
     >
       {children}

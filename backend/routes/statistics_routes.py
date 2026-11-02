@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 
-from schemas.weighting_schema import WeightRequest, StatisticsProfileRequest
-from services.statistics_service import estimate_statistics_service, profile_dataset_service
+from schemas.weighting_schema import WeightRequest, StatisticsProfileRequest, RakeRequest
+from services.statistics_service import estimate_statistics_service, profile_dataset_service, rake_dataset_service
 from services.statistics.weighting_engine import WeightingError
 from core.exceptions import DatasetNotFoundError
 from utils.log_utils import log_calls
@@ -14,7 +14,7 @@ router = APIRouter()
 async def profile_dataset(payload: StatisticsProfileRequest):
     try:
         return await profile_dataset_service(payload.model_dump())
-    except DatasetNotFoundError as e:
+    except DatasetNotFoundError:
         raise HTTPException(status_code=404, detail="Dataset file not found.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -27,7 +27,26 @@ async def estimate_statistics(payload: WeightRequest):
         return await estimate_statistics_service(payload.model_dump())
     except HTTPException:
         raise
-    except DatasetNotFoundError as e:
+    except DatasetNotFoundError:
+        raise HTTPException(status_code=404, detail="Dataset file not found.")
+    except WeightingError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/statistics/rake")
+@log_calls
+async def rake_dataset(payload: RakeRequest):
+    """
+    Calibrates survey data using Iterative Proportional Fitting (IPF / Raking)
+    against target population marginal distributions.
+    """
+    try:
+        return await rake_dataset_service(payload.model_dump())
+    except HTTPException:
+        raise
+    except DatasetNotFoundError:
         raise HTTPException(status_code=404, detail="Dataset file not found.")
     except WeightingError as e:
         raise HTTPException(status_code=400, detail=str(e))

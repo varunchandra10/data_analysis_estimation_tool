@@ -36,8 +36,14 @@ async def clean_missing_values_service(payload: dict[str, Any]) -> dict[str, Any
             df[[column]] = imputer.fit_transform(df[[column]])
         elif strategy == 'knn':
             num_cols = df.select_dtypes(include=[np.number]).columns
-            imputer = KNNImputer(n_neighbors=5)
-            df[num_cols] = imputer.fit_transform(df[num_cols])
+            if column in num_cols and len(num_cols) > 0:
+                valid_count = len(df[column].dropna())
+                n_neighbors = min(5, max(1, valid_count - 1)) if valid_count > 1 else 1
+                imputer = KNNImputer(n_neighbors=n_neighbors)
+                imputed_matrix = imputer.fit_transform(df[num_cols])
+                target_col_idx = list(num_cols).index(column)
+                # Strictly isolate imputation to the specified target column only
+                df[column] = imputed_matrix[:, target_col_idx]
 
     if in_memory:
         saved_path = path

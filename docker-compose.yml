@@ -12,6 +12,8 @@ services:
     volumes:
       - ./backend/reports:/app/backend/reports
       - ./backend/ai_cache:/app/backend/ai_cache
+      - ./backend/datasets:/app/backend/datasets
+      - ./backend/daet.sqlite3:/app/backend/daet.sqlite3
 
   frontend:
     build:

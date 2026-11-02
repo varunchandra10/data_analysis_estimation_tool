@@ -54,36 +54,39 @@ def _strip_stage_prefix(dataset_name: str) -> str:
     return normalized
 
 
-def dataset_dir(dataset_name: str) -> Path:
-    return DATASETS_ROOT / _strip_stage_prefix(dataset_name)
+def dataset_dir(dataset_name: str, user_id: int | str | None = None) -> Path:
+    clean_name = _strip_stage_prefix(dataset_name)
+    if user_id is not None:
+        return DATASETS_ROOT / f"user_{user_id}" / clean_name
+    return DATASETS_ROOT / clean_name
 
 
-def processed_dir(dataset_name: str) -> Path:
-    return dataset_dir(dataset_name) / PROCESSED_DIRNAME
+def processed_dir(dataset_name: str, user_id: int | str | None = None) -> Path:
+    return dataset_dir(dataset_name, user_id=user_id) / PROCESSED_DIRNAME
 
 
-def archive_dir(dataset_name: str) -> Path:
-    return dataset_dir(dataset_name) / ARCHIVE_DIRNAME
+def archive_dir(dataset_name: str, user_id: int | str | None = None) -> Path:
+    return dataset_dir(dataset_name, user_id=user_id) / ARCHIVE_DIRNAME
 
 
-def dataset_logs_dir(dataset_name: str) -> Path:
-    return dataset_dir(dataset_name) / LOGS_DIRNAME
+def dataset_logs_dir(dataset_name: str, user_id: int | str | None = None) -> Path:
+    return dataset_dir(dataset_name, user_id=user_id) / LOGS_DIRNAME
 
 
-def versions_dir(dataset_name: str) -> Path:
-    return processed_dir(dataset_name) / VERSIONS_DIRNAME
+def versions_dir(dataset_name: str, user_id: int | str | None = None) -> Path:
+    return processed_dir(dataset_name, user_id=user_id) / VERSIONS_DIRNAME
 
 
-def manifests_dir(dataset_name: str) -> Path:
-    return processed_dir(dataset_name) / MANIFESTS_DIRNAME
+def manifests_dir(dataset_name: str, user_id: int | str | None = None) -> Path:
+    return processed_dir(dataset_name, user_id=user_id) / MANIFESTS_DIRNAME
 
 
-def ai_cache_path(dataset_name: str) -> Path:
-    return dataset_dir(dataset_name) / AI_CACHE_FILENAME
+def ai_cache_path(dataset_name: str, user_id: int | str | None = None) -> Path:
+    return dataset_dir(dataset_name, user_id=user_id) / AI_CACHE_FILENAME
 
 
-def audit_log_path(dataset_name: str) -> Path:
-    return dataset_logs_dir(dataset_name) / AUDIT_LOG_FILENAME
+def audit_log_path(dataset_name: str, user_id: int | str | None = None) -> Path:
+    return dataset_logs_dir(dataset_name, user_id=user_id) / AUDIT_LOG_FILENAME
 
 
 def temp_root() -> Path:
@@ -107,28 +110,32 @@ def resolve_dataset_name(dataset_ref: str | Path) -> str:
         if parent.parent == DATASETS_ROOT:
             return parent.name
 
+        # Support tenant-partitioned paths: DATASETS_ROOT / user_{id} / dataset_name
+        if parent.parent.name.startswith("user_") and parent.parent.parent == DATASETS_ROOT:
+            return parent.name
+
     return _strip_stage_prefix(path.name)
 
 
-def ensure_dataset_layout(dataset_name: str) -> Path:
-    root = dataset_dir(dataset_name)
+def ensure_dataset_layout(dataset_name: str, user_id: int | str | None = None) -> Path:
+    root = dataset_dir(dataset_name, user_id=user_id)
 
     for directory in (
         DATASETS_ROOT,
         SERVER_LOGS_ROOT,
         root,
-        processed_dir(dataset_name),
-        archive_dir(dataset_name),
-        dataset_logs_dir(dataset_name),
-        versions_dir(dataset_name),
-        manifests_dir(dataset_name),
+        processed_dir(dataset_name, user_id=user_id),
+        archive_dir(dataset_name, user_id=user_id),
+        dataset_logs_dir(dataset_name, user_id=user_id),
+        versions_dir(dataset_name, user_id=user_id),
+        manifests_dir(dataset_name, user_id=user_id),
     ):
         directory.mkdir(parents=True, exist_ok=True)
 
     _migrate_legacy_stage_files(root)
 
-    legacy_processed_cache = processed_dir(dataset_name) / AI_CACHE_FILENAME
-    cache_file = ai_cache_path(dataset_name)
+    legacy_processed_cache = processed_dir(dataset_name, user_id=user_id) / AI_CACHE_FILENAME
+    cache_file = ai_cache_path(dataset_name, user_id=user_id)
     if legacy_processed_cache.exists() and not cache_file.exists():
         legacy_processed_cache.replace(cache_file)
 

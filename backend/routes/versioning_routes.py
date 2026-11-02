@@ -75,11 +75,14 @@ router = APIRouter()
 
 
 def _ensure_owner(dataset_name: str, current_user) -> None:
+    db = SessionLocal()
     try:
-        db = SessionLocal()
         ds = db.query(Dataset).filter(Dataset.dataset_name == resolve_dataset_name(dataset_name)).first()
-        if ds and ds.owner_id and current_user and getattr(current_user, 'id', None) != ds.owner_id:
-            raise HTTPException(status_code=403, detail='Forbidden: not dataset owner')
+        if not ds:
+            raise HTTPException(status_code=404, detail="Dataset not found")
+        current_user_id = getattr(current_user, 'id', None)
+        if ds.owner_id is not None and current_user_id is not None and ds.owner_id != current_user_id:
+            raise HTTPException(status_code=403, detail="Forbidden: You do not own this dataset")
     finally:
         try:
             db.close()

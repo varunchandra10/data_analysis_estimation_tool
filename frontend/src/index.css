@@ -8,61 +8,72 @@
   ========================================================================
 */
 
-/* Core CSS Variable definitions for Light and Dark themes */
-:root {
-  /* Dark mode default properties */
-  --bg-primary: #020617;     /* slate-950 */
-  --bg-secondary: #0f172a;   /* slate-900 */
-  --bg-tertiary: #1e293b;    /* slate-800 */
-  --bg-card: #0b1329;        /* custom dark blue container */
-  --bg-card-hover: #16223f;  
-  --border-color: #1e293b;   /* slate-800 */
-  --border-muted: #0f172a;   /* slate-900 */
-  
-  --text-primary: #f8fafc;   /* slate-50 */
-  --text-secondary: #cbd5e1; /* slate-300 */
-  --text-muted: #64748b;      /* slate-500 */
-  --text-highlight: #818cf8;  /* indigo-400 */
+/* ========================================================================
+   DAET GLOBAL ENTERPRISE DESIGN SYSTEM & STANDARD THEME PALETTE
+   ======================================================================== */
 
-  --shadow-main: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+:root,
+.dark,
+html.dark {
+  /* DARK THEME: Deep Obsidian & Midnight Palette */
+  --bg-primary: #020617;     /* Page background (Obsidian Slate 950) */
+  --bg-secondary: #0f172a;   /* Cards & Surfaces (Slate 900) */
+  --bg-tertiary: #1e293b;    /* Hover & Active inputs (Slate 800) */
+  --bg-card: #0b1329;        /* Containers & nested cards */
+  --bg-card-hover: #16223f;  /* Card hover */
+  --border-color: #1e293b;   /* Standard border (Slate 800) */
+  --border-muted: #334155;   /* Divider / subtle border (Slate 700) */
+  
+  --text-primary: #f8fafc;   /* Primary headings (White / Slate 50) */
+  --text-secondary: #94a3b8; /* Secondary body text (Slate 400) */
+  --text-muted: #64748b;     /* Muted labels & placeholders (Slate 500) */
+  --text-highlight: #818cf8; /* Brand accent (Indigo 400) */
+
+  --accent-blue: #60a5fa;
+  --accent-emerald: #34d399;
+  --accent-amber: #fbbf24;
+  --accent-rose: #f87171;
+
+  --shadow-main: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
 }
 
-.light {
-  /* Premium light mode properties */
-  --bg-primary: #f8fafc;     /* slate-50 */
-  --bg-secondary: #ffffff;   /* pure white card/table background */
-  --bg-tertiary: #e2e8f0;    /* slate-200 */
-  --bg-card: #f1f5f9;        /* slate-100 container */
-  --bg-card-hover: #e2e8f0;
-  --border-color: #cbd5e1;   /* slate-300 */
-  --border-muted: #e2e8f0;   /* slate-200 */
+.light,
+html.light {
+  /* LIGHT THEME: Clean, Crisp, High-Contrast Palette */
+  --bg-primary: #f8fafc;     /* Page background (Ultra-clean Slate 50) */
+  --bg-secondary: #ffffff;   /* Cards & Surfaces (Pure White) */
+  --bg-tertiary: #f1f5f9;    /* Hover & Active inputs (Slate 100) */
+  --bg-card: #ffffff;        /* Containers & nested cards (Pure White) */
+  --bg-card-hover: #f8fafc;  /* Card hover */
+  --border-color: #e2e8f0;   /* Standard border (Slate 200) */
+  --border-muted: #cbd5e1;   /* Divider / subtle border (Slate 300) */
 
-  --text-primary: #0f172a;   /* slate-900 */
-  --text-secondary: #334155; /* slate-700 */
-  --text-muted: #64748b;      /* slate-500 */
-  --text-highlight: #4f46e5;  /* indigo-600 */
+  --text-primary: #0f172a;   /* Primary headings (Deep Slate 900) */
+  --text-secondary: #475569; /* Secondary body text (Slate 600) */
+  --text-muted: #94a3b8;     /* Muted labels & placeholders (Slate 400) */
+  --text-highlight: #4f46e5; /* Brand accent (Indigo 600) */
 
-  --shadow-main: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --accent-blue: #2563eb;
+  --accent-emerald: #059669;
+  --accent-amber: #d97706;
+  --accent-rose: #dc2626;
+
+  --shadow-main: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
 }
 
 /* 
-  Map standard Tailwind CSS v4 color variables to design system tokens.
-  Tailwind v4 internally references these --color-* variables.
+  Semantic theme variables mapping.
+  Standard Tailwind palette (slate-50 through slate-950) remains intact.
 */
 @theme {
-  --color-slate-950: var(--bg-primary);
-  --color-slate-900: var(--bg-secondary);
-  --color-slate-800: var(--border-color);
-  --color-slate-700: var(--bg-tertiary);
-  --color-slate-500: var(--text-muted);
-  --color-slate-400: var(--text-secondary);
-  --color-slate-300: var(--text-secondary);
-  --color-slate-200: var(--text-primary);
-  --color-slate-100: var(--text-primary);
-  
-  --color-indigo-950: var(--bg-card);
-  --color-indigo-900: var(--bg-card-hover);
-  --color-indigo-400: var(--text-highlight);
+  --color-page: var(--bg-primary);
+  --color-surface: var(--bg-secondary);
+  --color-subtle: var(--bg-tertiary);
+  --color-border: var(--border-color);
+  --color-heading: var(--text-primary);
+  --color-body: var(--text-secondary);
+  --color-muted: var(--text-muted);
+  --color-accent: var(--text-highlight);
 }
 
 /* Base resets & layout rules */

@@ -1,5 +1,5 @@
 /Phases.md
-backend/venv/
+backend/.venv/
 ./frontend/node_modules
 git_commands.txt
 /AI_Integration.MD
@@ -9,7 +9,10 @@ deep_audit_report.md
 
 
 # Backend runtime artifacts
-backend/__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
 backend/.pytest_cache/
 backend/.mypy_cache/
 backend/.ruff_cache/

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -41,3 +41,31 @@ class WeightResponse(BaseModel):
     file_path: str
     results: dict[str, Any] = Field(default_factory=dict)
     weights: dict[str, Any] = Field(default_factory=dict)
+
+
+class RakeRequest(BaseModel):
+    model_config = ConfigDict(extra='ignore')
+
+    file_path: str
+    target_margins: dict[str, dict[str, float]]
+    base_weight_column: Optional[str] = None
+    output_weight_column: str = 'calibrated_weight'
+    max_iter: int = 100
+    epsilon: float = 1e-4
+    trim_lower: Optional[float] = None
+    trim_upper: Optional[float] = None
+
+
+class RakeResponse(BaseModel):
+    status: str = 'success'
+    file_path: str
+    converged: bool
+    iterations: int
+    max_diff: float
+    kish_effective_sample_size: float
+    kish_design_effect: float
+    sample_size: int
+    weight_column: str
+    weight_distribution: dict[str, float]
+    marginal_comparisons: list[dict[str, Any]]
+    iteration_history: list[dict[str, Any]]

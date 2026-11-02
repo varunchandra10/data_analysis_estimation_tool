@@ -80,8 +80,8 @@ def _stage_filename(dataset_name: str, stage_name: str, file_extension: str = '.
     return f'{stage_name}_{dataset_stem}{normalized_extension}'
 
 
-def _dataset_stage_path(project_id: str, dataset_name: str, stage_name: str, file_extension: str = '.csv') -> Path:
-    return processed_dir(dataset_name) / _stage_filename(dataset_name, stage_name, file_extension)
+def _dataset_stage_path(project_id: str, dataset_name: str, stage_name: str, file_extension: str = '.csv', user_id: int | str | None = None) -> Path:
+    return processed_dir(dataset_name, user_id=user_id) / _stage_filename(dataset_name, stage_name, file_extension)
 
 
 def _ensure_directories(project_id: str = DEFAULT_PROJECT_ID) -> Path:
@@ -290,11 +290,12 @@ def save_stage_dataset(
     stage_name: str,
     file_extension: str | None = None,
     project_id: str = DEFAULT_PROJECT_ID,
+    user_id: int | str | None = None,
 ) -> Path:
     _ensure_directories(project_id)
 
     resolved_dataset_name = resolve_dataset_name(dataset_name)
-    ensure_dataset_layout(resolved_dataset_name)
+    ensure_dataset_layout(resolved_dataset_name, user_id=user_id)
 
     if file_extension is None:
         if isinstance(dataset_source, pd.DataFrame):
@@ -308,7 +309,7 @@ def save_stage_dataset(
             else:
                 file_extension = '.csv'
 
-    target_path = _dataset_stage_path(project_id, resolved_dataset_name, stage_name, file_extension)
+    target_path = _dataset_stage_path(project_id, resolved_dataset_name, stage_name, file_extension, user_id=user_id)
     return _normalize_dataset_source(dataset_source, target_path)
 
 

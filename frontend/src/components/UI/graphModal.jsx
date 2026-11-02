@@ -3,8 +3,8 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import InfoTooltip from "./InfoTooltip";
 
 /**
- * GraphEnclosure - A premium, reusable statistical visualization layout shell.
- * Dynamically handles section titles, visibility states, and toggle closures.
+ * GraphEnclosure - Reusable statistical visualization layout shell.
+ * Theme-aware container supporting collapsible headers, info tooltips, and responsive layout.
  */
 const GraphEnclosure = ({ 
   title = "Analytical Plot Matrix", 
@@ -14,45 +14,44 @@ const GraphEnclosure = ({
   icon: Icon = null,
   children 
 }) => {
-  // Section defaults to closed state. Automatically expands via downstream effects when data arrives.
   const [isOpen, setIsOpen] = useState(false);
 
-  // Synchronizes container state to open automatically when dynamic data mounts
   useEffect(() => {
     if (hasData) {
       setIsOpen(true);
     }
   }, [hasData]);
 
-  // Structural Guard: Structural panel outline unmounts completely if no active graph is displayable
   if (!hasData) return null;
 
   return (
-    <div className="bg-[#0f172a] border-2 border-slate-800/80 rounded-xl overflow-hidden shadow-xl transition-all duration-300">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-xs transition-all duration-200">
       
       {/* HEADER CONTROL BLOCK */}
       <div 
         onClick={() => setIsOpen(!isOpen)}
-        className="px-5 py-3.5 border-b border-slate-900 flex items-center justify-between bg-[#0b1329] text-white cursor-pointer select-none group/enclosure"
+        className="px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-900/60 text-slate-800 dark:text-slate-100 cursor-pointer select-none group/enclosure hover:bg-slate-100/60 dark:hover:bg-slate-800/40 transition-colors"
       >
         <div className="flex items-center gap-2.5 min-w-0">
-          {Icon && <Icon size={14} className="text-indigo-400 shrink-0" />}
+          {Icon && (
+            <div className="p-1 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/40 shrink-0">
+              <Icon size={14} />
+            </div>
+          )}
           <div className="space-y-0.5 min-w-0">
-            {/* Dynamic Title String Header Element */}
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200 font-mono truncate">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 font-mono truncate">
               {title}
             </h3>
-            {/* Dynamic Subtitle String Element */}
             {subtitle && (
-              <p className="text-[11px] text-slate-500 font-medium font-sans truncate">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium font-sans truncate">
                 {subtitle}
               </p>
             )}
           </div>
         </div>
 
-        {/* ACTIONS & KEY TOGGLE BLOCK FAR RIGHT LAYOUT ALIGNED */}
-        <div className="flex items-center gap-4 ml-4 shrink-0">
+        {/* ACTIONS & KEY TOGGLE BLOCK */}
+        <div className="flex items-center gap-3 ml-4 shrink-0">
           {tooltip && (
             <InfoTooltip
               ariaLabel={`${title} information`}
@@ -62,19 +61,18 @@ const GraphEnclosure = ({
             />
           )}
           
-          {/* CONTROL DOWN-ARROW BUTTON INDICATOR */}
-          <div className="p-1 text-slate-400 group-hover/enclosure:text-slate-100 bg-slate-950 border border-slate-800 rounded-md transition-colors font-mono text-[10px] flex items-center gap-1.5">
-            <span className="text-slate-600 font-bold text-[9px] uppercase hidden sm:inline">
+          <div className="p-1 text-slate-500 dark:text-slate-400 group-hover/enclosure:text-indigo-600 dark:group-hover/enclosure:text-indigo-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md transition-colors font-mono text-[10px] flex items-center gap-1.5 shadow-2xs">
+            <span className="font-bold text-[9px] uppercase hidden sm:inline">
               {isOpen ? "Collapse" : "Expand"}
             </span>
-            {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            {isOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
           </div>
         </div>
       </div>
 
-      {/* DISCLOSURE BODY CONTENT GRID CANVAS */}
+      {/* DISCLOSURE BODY CONTENT */}
       {isOpen && (
-        <div className="p-6 bg-slate-950/10 border-t border-slate-900/40 animate-in slide-in-from-top-1.5 duration-200 min-w-0 w-full overflow-hidden">
+        <div className="p-5 bg-white dark:bg-slate-900/60 min-w-0 w-full overflow-hidden animate-in fade-in duration-150">
           {children}
         </div>
       )}

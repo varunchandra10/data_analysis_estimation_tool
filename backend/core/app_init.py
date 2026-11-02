@@ -1,7 +1,11 @@
+import matplotlib
+matplotlib.use('Agg')
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import CORS_ORIGINS
+
 
 def create_app():
 
@@ -19,4 +23,3 @@ def create_app():
     )
 
     return app
-    

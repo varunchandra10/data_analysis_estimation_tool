@@ -48,6 +48,7 @@ class AppConfig(BaseModel):
 	max_violations: int = Field(default_factory=lambda: int(os.getenv('MAX_VIOLATIONS', '100')))
 	cors_origins: tuple[str, ...] = Field(default_factory=lambda: tuple(origin.strip() for origin in os.getenv('CORS_ORIGINS', '*').split(',') if origin.strip()))
 	allowed_file_types: tuple[str, ...] = Field(default_factory=lambda: tuple(ft.strip() for ft in os.getenv('ALLOWED_FILE_TYPES', '.csv,.xlsx').split(',') if ft.strip()))
+	environment: str = Field(default_factory=lambda: os.getenv('ENVIRONMENT', 'development'))
 
 
 settings = AppConfig()
@@ -74,3 +75,4 @@ SECRET_KEY = settings.secret_key
 JWT_ALGORITHM = os.getenv('JWT_ALGORITHM', 'HS256')
 ACCESS_TOKEN_EXPIRE_SECONDS = int(os.getenv('ACCESS_TOKEN_EXPIRE_SECONDS', '3600'))
 CORS_ORIGINS = settings.cors_origins
+ENVIRONMENT = settings.environment

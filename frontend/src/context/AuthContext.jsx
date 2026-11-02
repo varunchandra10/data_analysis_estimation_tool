@@ -5,6 +5,7 @@ import {
   getAuthUsername,
   getToken,
   login as loginRequest,
+  register as registerRequest,
   setAuthUsername,
 } from '../services/api/auth.api';
 
@@ -13,8 +14,9 @@ export const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(Boolean(getToken()));
-  const [username, setUsername] = useState(getAuthUsername() || 'testuser');
+  const [username, setUsername] = useState(getAuthUsername() || '');
   const [error, setError] = useState('');
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -26,7 +28,7 @@ export function AuthProvider({ children }) {
         const session = await bootstrapAuthSession();
         if (!active) return;
         setIsAuthenticated(Boolean(session?.isAuthenticated));
-        setUsername(session?.username || getAuthUsername() || 'testuser');
+        setUsername(session?.username || getAuthUsername() || '');
       } catch (err) {
         if (!active) return;
         setIsAuthenticated(Boolean(getToken()));
@@ -40,8 +42,18 @@ export function AuthProvider({ children }) {
 
     init();
 
+    const handleUnauthorized = () => {
+      setIsAuthenticated(false);
+      setUsername('');
+      setError('Session expired or unauthorized. Please sign in again.');
+      setIsLoginModalOpen(true);
+    };
+
+    window.addEventListener('daet:unauthorized', handleUnauthorized);
+
     return () => {
       active = false;
+      window.removeEventListener('daet:unauthorized', handleUnauthorized);
     };
   }, []);
 
@@ -51,7 +63,15 @@ export function AuthProvider({ children }) {
     setAuthUsername(nextUsername);
     setUsername(nextUsername);
     setIsAuthenticated(true);
+    setIsLoginModalOpen(false);
     return response;
+  };
+
+  const register = async (nextUsername, email, password) => {
+    setError('');
+    await registerRequest(nextUsername, email, password);
+    // Automatically log in with the new credentials
+    return await login(nextUsername, password);
   };
 
   const logout = () => {
@@ -68,7 +88,11 @@ export function AuthProvider({ children }) {
         username,
         authError: error,
         setAuthError: setError,
+        isLoginModalOpen,
+        openLoginModal: () => setIsLoginModalOpen(true),
+        closeLoginModal: () => setIsLoginModalOpen(false),
         login,
+        register,
         logout,
       }}
     >

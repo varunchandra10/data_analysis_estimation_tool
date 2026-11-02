@@ -36,18 +36,20 @@ async def ensure_versioning_storage():
         pass
     create_project(DEFAULT_PROJECT_ID)
     
-    # Auto-create sandbox user if not exists
-    db = SessionLocal()
-    try:
-        from models.user_model import User
-        from services.auth_service import create_user
-        test_user = db.query(User).filter(User.username == "testuser").first()
-        if not test_user:
-            create_user(username="testuser", email="testuser@example.com", password="testpassword", db=db)
-    except Exception as e:
-        print(f"Error creating test user: {e}")
-    finally:
-        db.close()
+    # Auto-create sandbox user if not exists (dev/staging only)
+    from core.config import ENVIRONMENT
+    if ENVIRONMENT != "production":
+        db = SessionLocal()
+        try:
+            from models.user_model import User
+            from services.auth_service import create_user
+            test_user = db.query(User).filter(User.username == "testuser").first()
+            if not test_user:
+                create_user(username="testuser", email="testuser@example.com", password="testpassword", db=db)
+        except Exception as e:
+            print(f"Error creating test user: {e}")
+        finally:
+            db.close()
 
 
 # =========================================================
@@ -67,14 +69,7 @@ app.include_router(report_router, tags=["Reports"])
 app.include_router(versioning_router, tags=["Versioning"])
 app.include_router(pipeline_router, tags=["Pipeline"])
 
-# =========================================================
-# STATIC FILES MOUNT
-# =========================================================
-import os
-from fastapi.staticfiles import StaticFiles
-
-os.makedirs("reports", exist_ok=True)
-app.mount("/reports", StaticFiles(directory="reports"), name="reports")
+# Static mount removed for security; PDF reports are served via authenticated / signed endpoints in report_routes.py
 
 # =========================================================
 # ROOT HEALTH CHECK

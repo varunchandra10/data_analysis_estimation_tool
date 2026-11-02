@@ -2,7 +2,6 @@ import axios from 'axios';
 
 const BASE_API_URL = import.meta.env.VITE_API_URL || 'https://data-analysis-estimation-tool.onrender.com';
 const AUTH_TOKEN_KEY = 'daet_auth_token';
-let reloginPromise = null;
 
 const httpClient = axios.create({
   baseURL: BASE_API_URL,
@@ -12,7 +11,7 @@ const httpClient = axios.create({
   },
 });
 
-// Request Interceptor
+// Request Interceptor: Attach JWT bearer token if present
 httpClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem(AUTH_TOKEN_KEY);
@@ -24,7 +23,7 @@ httpClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response Interceptor
+// Response Interceptor: Unpack data and handle unauthorized sessions cleanly
 httpClient.interceptors.response.use(
   (response) => {
     if (response.config?.responseType === 'blob') {
@@ -37,40 +36,16 @@ httpClient.interceptors.response.use(
     const originalRequest = error.config || {};
     const status = error.response?.status || null;
 
-    if (
-      status === 401 &&
-      !originalRequest._retry &&
-      !String(originalRequest.url || '').includes('/api/auth/')
-    ) {
-      originalRequest._retry = true;
-
-      try {
-        if (!reloginPromise) {
-          reloginPromise = axios.post(`${BASE_API_URL}/api/auth/login`, {
-            username: 'testuser',
-            password: 'testpassword',
-          });
-        }
-
-        const reloginResponse = await reloginPromise;
-        const token = reloginResponse?.data?.data?.access_token || reloginResponse?.data?.access_token;
-
-        if (token) {
-          localStorage.setItem(AUTH_TOKEN_KEY, token);
-          originalRequest.headers = originalRequest.headers || {};
-          originalRequest.headers.Authorization = `Bearer ${token}`;
-          return httpClient(originalRequest);
-        }
-      } catch (reloginError) {
-        localStorage.removeItem(AUTH_TOKEN_KEY);
-      } finally {
-        reloginPromise = null;
-      }
+    // When 401 Unauthorized occurs, clear session tokens and notify UI
+    if (status === 401 && !String(originalRequest.url || '').includes('/api/auth/')) {
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+      localStorage.removeItem('daet_auth_username');
+      window.dispatchEvent(new CustomEvent('daet:unauthorized'));
     }
 
     let message = 'An unexpected error occurred.';
     let details = null;
-    
+
     if (error.response) {
       details = error.response.data;
       message = error.response.data?.detail || error.response.data?.message || `Server Error: ${status}`;
@@ -79,11 +54,11 @@ httpClient.interceptors.response.use(
     } else {
       message = error.message;
     }
-    
+
     return Promise.reject({
       status,
       message,
-      details
+      details,
     });
   }
 );
