@@ -133,11 +133,20 @@ const FileUpload = ({ onUploadSuccess }) => {
     setLoadingSample(true);
     setError(null);
     try {
-      const response = await fetch('/sample_survey_data.csv');
-      if (!response.ok) {
-        throw new Error('Unable to retrieve sample survey data from asset registry.');
-      }
-      const blob = await response.blob();
+      const sampleCsvData = `respondent_id,age,gender,region,education,employment_status,monthly_income,monthly_expenditure,hours_worked_per_week,household_size,satisfaction_score,sampling_weight
+1001,60.0,Male,North,Graduate,Employed,82300.0,68800.0,41.9,5.0,7.0,1.0606
+1002,49.0,Female,East,High School,Employed,49400.0,24700.0,30.4,6.0,9.0,1.1703
+1003,36.0,Female,South,High School,Employed,30400.0,22600.0,43.2,2.0,3.0,1.2416
+1004,39.0,Female,South,Postgraduate,Unemployed,0.0,8000.0,0.0,4.0,7.0,1.1859
+1005,67.0,Male,West,Graduate,Unemployed,0.0,8000.0,0.0,5.0,3.0,1.1968
+1006,44.0,Male,North,High School,Retired,,17400.0,0.0,5.0,4.0,1.0132
+1007,41.0,Male,South,High School,Employed,82700.0,61700.0,35.0,5.0,6.0,1.0707
+1008,32.0,Female,East,Graduate,Employed,49500.0,33600.0,41.5,5.0,3.0,0.9516
+1009,38.0,Female,North,High School,Student,9300.0,8000.0,10.4,6.0,7.0,0.9284
+1010,55.0,Female,North,High School,Unemployed,95000.0,46500.0,41.0,5.0,4.0,1.0522
+1011,31.0,Male,North,Graduate,Employed,75800.0,58200.0,46.2,3.0,3.0,1.088
+1012,60.0,Female,North,Graduate,Employed,58000.0,30800.0,33.9,4.0,5.0,0.9857`;
+      const blob = new Blob([sampleCsvData], { type: 'text/csv' });
       const sampleFile = new File([blob], 'sample_survey_data.csv', { type: 'text/csv' });
       await processUpload(sampleFile);
     } catch (err) {

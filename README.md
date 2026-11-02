@@ -201,8 +201,6 @@ DAET/
 │   └── vite.config.js              # Vite compiler configuration
 │
 ├── documents/                      # Architectural diagrams, sequence flows & UI screenshots
-├── sample_survey_data.csv          # Sample CSV survey dataset for testing
-├── sample_survey_data.xlsx         # Sample Excel survey dataset for testing
 ├── docker-compose.yml              # Multi-container orchestration specification
 ├── LICENSE                         # MIT Open Source License
 └── README.md                       # Project master documentation
